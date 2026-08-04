@@ -92,7 +92,7 @@ compute node ไม่มีอินเทอร์เน็ต `setup_user.sh`
 **ผู้เรียนแต่ละคน ทำครั้งเดียว:**
 
 ```bash
-bash /project/tn999996-north/hpc-ai-workshop/setup_user.sh
+bash /project/tn999996-north/training_ai_ml/setup_user.sh
 ```
 
 คำสั่งนี้จะสร้าง `~/hpc-ai-workshop/` ซึ่งมีสำเนา `configs/` และ `jobs/`
