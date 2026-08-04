@@ -325,7 +325,7 @@ config, และชื่อคลาส — ดังนั้น `evaluate.py
 ตัวเลขจะแตกต่างกันไปตามฮาร์ดแวร์และภาระงานของโหนด — นี่เป็นตัวเลข
 คร่าว ๆ สำหรับตรวจสอบความสมเหตุสมผลของผลการรันของคุณ
 
-**Lab 1 — MNIST, LeNet-5, 5 epoch, batch 128:**
+**Demo — MNIST, LeNet-5, 5 epoch, batch 128:**
 
 | | CPU (16 คอร์) | GPU 1x A100 |
 |--|--|--|
@@ -333,7 +333,7 @@ config, และชื่อคลาส — ดังนั้น `evaluate.py
 | Throughput | ~1,000–2,000 img/s | ~6,000–12,000 img/s |
 | ความแม่นยำ (accuracy) สุดท้ายของ val | ~99% | ~99% (คำนวณแบบเดียวกัน ผลลัพธ์เดียวกัน) |
 
-**Lab 2 — THFOOD-100 baseline (ResNet-18, 5 epoch, GPU 1x A100):**
+**Hands-on — THFOOD-100 baseline (ResNet-18, 5 epoch, GPU 1x A100):**
 
 | | ค่า |
 |--|--|
