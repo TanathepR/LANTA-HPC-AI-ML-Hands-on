@@ -143,7 +143,7 @@ python -c "import torchvision.models as m; \
 
 ---
 
-## Demo— CPU กับ GPU (MNIST)
+## Demo — CPU กับ GPU (MNIST)
 
 คอนฟิกทั้งสองไฟล์ [mnist_cpu.yaml](configs/mnist_cpu.yaml) และ
 [mnist_gpu.yaml](configs/mnist_gpu.yaml) **เหมือนกันทุกอย่าง ต่างกันแค่
