@@ -143,7 +143,7 @@ python -c "import torchvision.models as m; \
 
 ---
 
-## Lab 1 — CPU กับ GPU (MNIST)
+## Demo— CPU กับ GPU (MNIST)
 
 คอนฟิกทั้งสองไฟล์ [mnist_cpu.yaml](configs/mnist_cpu.yaml) และ
 [mnist_gpu.yaml](configs/mnist_gpu.yaml) **เหมือนกันทุกอย่าง ต่างกันแค่
@@ -190,7 +190,7 @@ Epoch   1/5 | train loss 0.2431 acc 92.51% | val loss 0.0705 acc 97.72% |   11.2
 
 ---
 
-## Lab 2 — การจำแนกอาหารไทย (THFOOD-100)
+## Hands-on — การจำแนกอาหารไทย (THFOOD-100)
 
 ### 1. เตรียมชุดข้อมูล
 
