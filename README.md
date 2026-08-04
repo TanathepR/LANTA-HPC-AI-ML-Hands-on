@@ -217,7 +217,7 @@ python datasets/download.py --dataset thfood100 --root ./data/thfood100
 `configs/thfood_sample.yaml` แต่ยังไม่พอสำหรับความแม่นยำที่มีความหมาย
 ดู [ARCHITECTURE.md](ARCHITECTURE.md) สำหรับวิธีจัดการโครงสร้างแบบแบนนี้
 
-### 2. เทรน baseline
+### 2. Train baseline
 
 ```bash
 python scripts/train.py --config configs/thfood_baseline.yaml
@@ -230,7 +230,7 @@ ImageNet** — เนื่องจาก backbone รู้จักขอบ 
 จึงต้องการเพียงไม่กี่ epoch ในการปรับให้เข้ากับอาหารไทย 100 ชนิด
 (นี่คือหลักการของ *transfer learning*)
 
-### 3. ปรับจูนไฮเปอร์พารามิเตอร์ — แก้แค่ YAML!
+### 3. ปรับจูนไฮเปอร์พารามิเตอร์ — แก้แค่ไฟล์ YAML เท่านั้น!
 
 คัดลอก [thfood_competition.yaml](configs/thfood_competition.yaml)
 ตั้งชื่อการทดลองใหม่ทุกครั้งที่ลอง แล้วปรับจูน **เฉพาะ** ค่าต่อไปนี้:
@@ -258,10 +258,14 @@ sbatch jobs/train_thfood.sh --name thfood_bs128  --batch-size 128 --lr 0.0006
 ### 4. ประเมินผลและทำนาย
 
 ```bash
-python scripts/evaluate.py --checkpoint outputs/thfood_baseline/best.pt          # test split + รายงานแยกตามคลาส
-python scripts/predict.py  --model outputs/thfood_baseline/best.pt --image sample.jpg
-python scripts/benchmark.py --config configs/thfood_baseline.yaml                # ความเร็วและขนาดโมเดล
-python scripts/export.py   --checkpoint outputs/thfood_baseline/best.pt          # TorchScript
+cd ~/hpc-ai-workshop/
+```
+
+```bash
+python scripts/evaluate.py --checkpoint outputs/thfood_baseline/best.pt                  # test split + รายงานแยกตามคลาส
+python scripts/predict.py  --model outputs/thfood_baseline/best.pt --image sample.jpg    # ทำนายรูปภาพ
+python scripts/benchmark.py --config configs/thfood_baseline.yaml                        # ความเร็วและขนาดโมเดล
+python scripts/export.py   --checkpoint outputs/thfood_baseline/best.pt                  # TorchScript
 ```
 
 ---
@@ -271,7 +275,7 @@ python scripts/export.py   --checkpoint outputs/thfood_baseline/best.pt         
 ทุกการรันจะบันทึก loss, accuracy, learning rate, เวลาต่อ epoch,
 และ throughput ไว้ที่ `logs/<experiment_name>/`
 
-**แบบโลคอล:**
+**แบบ Local:**
 
 ```bash
 tensorboard --logdir logs
