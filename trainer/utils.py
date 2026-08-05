@@ -113,11 +113,22 @@ class DistributedContext:
 
 
 def init_distributed(requested_device: str) -> DistributedContext:
-    """Initialize ``torch.distributed`` if launched under ``torchrun``.
+    """Initialize ``torch.distributed`` if launched distributed.
 
-    ``torchrun`` (single- or multi-node) sets ``RANK``, ``WORLD_SIZE``, and
-    ``LOCAL_RANK`` in the environment before the script starts. A plain
-    ``python scripts/train.py ...`` invocation has none of these, so
+    Two launch styles are supported:
+
+    - ``torchrun`` (single- or multi-node) sets ``RANK``, ``WORLD_SIZE``, and
+      ``LOCAL_RANK`` in the environment before the script starts.
+    - Plain ``srun python scripts/train.py ...`` under Slurm, one task per
+      GPU (LANTA's own documented pattern for multi-GPU/multi-node PyTorch
+      jobs — see ``jobs/train_thfood_multinode.sh``): Slurm sets
+      ``SLURM_PROCID``/``SLURM_LOCALID``/``SLURM_NTASKS`` instead, and the
+      job script exports ``MASTER_ADDR``/``MASTER_PORT`` itself. This avoids
+      torchrun's own separate rendezvous handshake, which failed to connect
+      across nodes on LANTA's network even though plain ``env://``
+      process-group init (used here either way) worked fine.
+
+    A plain ``python scripts/train.py ...`` invocation has none of these, so
     ``WORLD_SIZE`` defaults to 1 and this is a no-op that returns a
     single-process context — same training path, no source change needed
     to go from 1 GPU to N.
@@ -129,7 +140,7 @@ def init_distributed(requested_device: str) -> DistributedContext:
     Returns:
         A ``DistributedContext`` describing this process's role.
     """
-    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    world_size = int(os.environ.get("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1")))
     if world_size <= 1:
         return DistributedContext(
             enabled=False,
@@ -140,16 +151,30 @@ def init_distributed(requested_device: str) -> DistributedContext:
             backend="none",
         )
 
-    rank = int(os.environ["RANK"])
-    local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+    if "RANK" in os.environ:
+        rank = int(os.environ["RANK"])
+        local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+    else:
+        # Slurm-native launch: srun already assigned one task per GPU, so
+        # rank/local rank come from Slurm rather than a torchrun rendezvous.
+        rank = int(os.environ["SLURM_PROCID"])
+        local_rank = int(os.environ.get("SLURM_LOCALID", "0"))
+
     use_cuda = requested_device.startswith("cuda") and torch.cuda.is_available()
     # NCCL is the fast GPU-to-GPU backend; gloo is the CPU fallback so a
     # multi-process CPU run (e.g. for debugging) still works under torchrun.
     backend = "nccl" if use_cuda else "gloo"
 
     if use_cuda:
-        torch.cuda.set_device(local_rank)
-        device = torch.device("cuda", local_rank)
+        # Under `srun`, whether GPU binding scopes CUDA_VISIBLE_DEVICES down
+        # to one GPU per task (device_count() == 1, so index 0 IS the
+        # assigned GPU) or leaves every GPU visible to every task
+        # (device_count() == N, so index local_rank picks the assigned one)
+        # depends on the cluster's Slurm GRES config. Handle both instead of
+        # assuming one.
+        gpu_index = 0 if torch.cuda.device_count() == 1 else local_rank
+        torch.cuda.set_device(gpu_index)
+        device = torch.device("cuda", gpu_index)
     else:
         device = torch.device("cpu")
 

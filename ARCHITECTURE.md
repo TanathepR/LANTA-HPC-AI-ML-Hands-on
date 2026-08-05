@@ -170,7 +170,7 @@ $SLURM_SUBMIT_DIR` → `source ./project.env` → `module load Mamba` +
 | `train_gpu.sh` | `gpu` (1× A100) | ตัวเก็บข้อมูล `nvidia-smi -l 5` ที่รันเบื้องหลัง → `logs/gpu-usage-<jobid>.csv` |
 | `train_thfood.sh` | `gpu` | ส่งต่อ argument เพิ่มเติมให้ `train.py` สำหรับ sweep |
 | `train_thfood_multigpu.sh` | `gpu` | เหมือน `train_thfood.sh` แต่รันผ่าน `torchrun --standalone --nproc_per_node=<N>` สำหรับ `N` GPU บน node เดียว (DDP, ดู §9) |
-| `train_thfood_multinode.sh` | `gpu` | `srun torchrun` พร้อม `c10d` rendezvous ข้ามหลาย node (DDP, ดู §9) |
+| `train_thfood_multinode.sh` | `gpu` | `srun python` — หนึ่ง process ต่อหนึ่ง GPU โดยตรง ไม่ผ่าน `torchrun` (DDP, ดู §9) |
 | `benchmark.sh` | `gpu` | Benchmark โมเดลทั้งสี่ตัวในหนึ่ง job |
 
 #### การแบ่ง quota: shared `/project` กับ personal `$HOME`
@@ -339,15 +339,35 @@ Lab 2 / THFOOD-100 สามารถ scale ไปสู่หลาย GPU แ�
 ความสามารถนี้ (ดูเหตุผลด้านล่าง) — เพราะโมเดลมีขนาดเล็กเกินกว่าที่ multi-GPU
 จะเพิ่มความซับซ้อนแล้วคุ้มค่ากับ speedup ที่จะแสดงให้เห็น
 
+**สอง launch style ที่รองรับ**, ทั้งคู่เข้า `trainer.utils.init_distributed`
+จุดเดียวกัน:
+
+- **`torchrun`** (`jobs/train_thfood_multigpu.sh`, node เดียว) — ตั้งค่า
+  `RANK` / `WORLD_SIZE` / `LOCAL_RANK` ให้เองผ่าน rendezvous ภายในของมันเอง
+- **`srun python` โดยตรง** (`jobs/train_thfood_multinode.sh`, ข้ามหลาย
+  node) — Slurm สั่ง process หนึ่งตัวต่อหนึ่ง GPU โดยตรง แล้ว rank มาจาก
+  `SLURM_PROCID`/`SLURM_LOCALID`/`SLURM_NTASKS` แทน; job script เป็นคน
+  export `MASTER_ADDR`/`MASTER_PORT` เอง วิธีนี้ตรงกับ pattern ที่ ThaiSC/
+  LANTA ใช้เป็นทางการสำหรับ PyTorch multi-GPU/multi-node — เลี่ยงปัญหาที่
+  rendezvous ของ `torchrun` เอง (เป็น TCP connection คนละอันกับ process
+  group จริง) connect ข้าม node บนเครือข่ายของ LANTA ไม่ได้ ทั้งที่ตัว
+  process group จริง (ผ่าน `env://` init เหมือนกัน) ใช้งานได้ปกติ
+
 **วิธีที่ต่อเชื่อมเข้าไปในระบบ:**
 
 - `scripts/train.py` เรียก `trainer.utils.init_distributed(device)` ทันที
-  หลังจาก seed ค่าต่างๆ แล้ว ฟังก์ชันนี้อ่านค่า `RANK` / `WORLD_SIZE` /
-  `LOCAL_RANK` จาก environment variable — ซึ่งถูกตั้งค่าโดย `torchrun` และ
-  จะไม่มีอยู่เลยถ้ารันแบบ `python scripts/train.py` ธรรมดา — แล้วคืนค่าเป็น
+  หลังจาก seed ค่าต่างๆ แล้ว ฟังก์ชันนี้ตรวจว่ามี `RANK` (จาก `torchrun`)
+  อยู่ใน environment variable หรือไม่ ถ้าไม่มีจะ fallback ไปอ่าน
+  `SLURM_PROCID`/`SLURM_LOCALID`/`SLURM_NTASKS` แทน (กรณี `srun python`
+  โดยตรง) รันแบบ `python scripts/train.py` ธรรมดาจะไม่มีตัวแปรเหล่านี้เลย
+  ฟังก์ชันจึงคืนค่าเป็น context แบบ single-process แทน แล้วคืนค่าเป็น
   `DistributedContext` (rank, world_size, local_rank, device ที่ resolve
   แล้ว, `is_main_process`) โค้ดส่วนถัดไปทั้งหมดจะแยกเงื่อนไขตามออบเจกต์นี้
-  อันเดียว แทนที่จะคำนวณสถานะ distributed ซ้ำเองในแต่ละจุด
+  อันเดียว แทนที่จะคำนวณสถานะ distributed ซ้ำเองในแต่ละจุด สำหรับการเลือก
+  GPU: ถ้า `torch.cuda.device_count()` เห็นแค่ 1 ตัว (Slurm จำกัด
+  `CUDA_VISIBLE_DEVICES` ต่อ task ไว้แล้ว) จะใช้ index 0 เสมอ ไม่งั้นจะใช้
+  `local_rank` เป็น index — รองรับได้ทั้งสองรูปแบบการตั้งค่า GPU binding ของ
+  Slurm โดยไม่ต้องรู้ล่วงหน้าว่าคลัสเตอร์ตั้งค่าแบบไหน
 - `datasets/thfood100.py::build_thfood_dataloaders` รับ `rank`/`world_size`
   และเมื่อ `world_size > 1` จะแบ่ง (shard) ชุดข้อมูล **train** ด้วย
   `DistributedSampler(shuffle=True, drop_last=True)` การใช้ `drop_last=True`
@@ -397,7 +417,8 @@ Lab 2 / THFOOD-100 สามารถ scale ไปสู่หลาย GPU แ�
 นี่คือธรรมเนียมมาตรฐานของ DDP และสอดคล้องกับที่ `dataset.num_workers` scale
 ตาม process อยู่แล้ว (แต่ละ GPU process มี DataLoader worker เป็นของตัวเอง)
 
-**วิธีรัน**: ผ่าน `jobs/train_thfood_multigpu.sh` (node เดียว) และ
-`jobs/train_thfood_multinode.sh` (หลาย node ผ่าน `srun torchrun` พร้อม
-`c10d` rendezvous) — ดูตาราง `jobs/` ใน §3 และหัวข้อ "การฝึกแบบ Multi-GPU /
-Multi-node" ใน README สำหรับคำสั่งที่ใช้
+**วิธีรัน**: ผ่าน `jobs/train_thfood_multigpu.sh` (node เดียว, ผ่าน
+`torchrun --standalone`) และ `jobs/train_thfood_multinode.sh` (หลาย node,
+ผ่าน `srun python` โดยตรงหนึ่ง process ต่อหนึ่ง GPU — ดูเหตุผลด้านบน) — ดู
+ตาราง `jobs/` ใน §3 และหัวข้อ "การฝึกแบบ Multi-GPU / Multi-node" ใน README
+สำหรับคำสั่งที่ใช้

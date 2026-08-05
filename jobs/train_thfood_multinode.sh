@@ -3,9 +3,15 @@
 # Lab 2 — THFOOD-100 transfer learning across MULTIPLE NODES (LANTA).
 #
 # Same DistributedDataParallel (DDP) approach as train_thfood_multigpu.sh,
-# extended to multiple nodes: one `torchrun` rendezvous spans all nodes in
-# the Slurm allocation, launched via `srun` (one torchrun process per node,
-# each of which then spawns --nproc_per_node local workers, one per GPU).
+# extended to multiple nodes. Launches ONE PROCESS PER GPU DIRECTLY via
+# `srun` (Slurm assigns each process its rank through SLURM_PROCID /
+# SLURM_LOCALID) instead of going through `torchrun`'s own rendezvous —
+# this matches LANTA's own documented pattern for multi-GPU/multi-node
+# PyTorch jobs. torchrun's separate rendezvous handshake (a second TCP
+# connection distinct from the actual training process group) timed out
+# connecting across nodes on LANTA's network even though the training
+# process group itself (the same underlying mechanism, `env://` init)
+# works fine — so this launch style avoids that failure mode.
 #
 # Submit from YOUR personal workspace (see setup_user.sh), not the shared
 # /project checkout:
@@ -20,9 +26,9 @@
 #SBATCH --job-name=thfood-mnode
 #SBATCH --partition=gpu              # LANTA GPU partition (A100)
 #SBATCH --nodes=2                    # <-- adjust to how many nodes you want
-#SBATCH --ntasks-per-node=1          # one torchrun launcher process per node
+#SBATCH --ntasks-per-node=4          # one task per GPU (must match --gpus-per-node)
 #SBATCH --gpus-per-node=4            # <-- adjust to how many GPUs per node
-#SBATCH --cpus-per-task=64
+#SBATCH --cpus-per-task=16           # (cores per node) / (GPUs per node)
 #SBATCH --time=04:00:00
 #SBATCH --account=tn999996           # <-- replace with your LANTA project account
 #SBATCH --output=logs/slurm-%x-%j.out
@@ -42,22 +48,20 @@ module purge
 module load Mamba/23.11.0-0          # LANTA's conda distribution (adjust if needed)
 conda activate hpc-ai
 
-export OMP_NUM_THREADS=$((SLURM_CPUS_PER_TASK / SLURM_GPUS_PER_NODE))
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 
-# Rendezvous point: the first node in the allocation coordinates process
-# group setup for every torchrun instance across all nodes.
-MASTER_ADDR=$(scontrol show hostnames "${SLURM_JOB_NODELIST}" | head -n 1)
-MASTER_PORT=29500
+# Rendezvous point for torch.distributed's process group (env:// init) —
+# the first node in the allocation. Every srun-launched process reads these
+# two variables directly; trainer.utils.init_distributed does the rest
+# (SLURM_PROCID -> rank, SLURM_LOCALID -> local rank, SLURM_NTASKS -> world
+# size).
+export MASTER_ADDR=$(scontrol show hostnames "${SLURM_JOB_NODELIST}" | head -n 1)
+export MASTER_PORT=29500
 
 echo "Job ${SLURM_JOB_ID}: ${SLURM_NNODES} node(s) x ${SLURM_GPUS_PER_NODE} GPU(s), master=${MASTER_ADDR}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # NOTE: pretrained ImageNet weights must already be cached on the shared
 # project (download them once on a login node — see setup_project.sh).
-srun torchrun \
-    --nnodes="${SLURM_NNODES}" \
-    --nproc_per_node="${SLURM_GPUS_PER_NODE}" \
-    --rdzv_id="${SLURM_JOB_ID}" \
-    --rdzv_backend=c10d \
-    --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}" \
-    "${HPCAI_PROJECT_DIR}/scripts/train.py" --config configs/thfood_baseline.yaml "$@"
+srun --cpus-per-task="${SLURM_CPUS_PER_TASK}" \
+    python "${HPCAI_PROJECT_DIR}/scripts/train.py" --config configs/thfood_baseline.yaml "$@"
