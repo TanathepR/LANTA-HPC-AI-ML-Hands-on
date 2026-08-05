@@ -313,12 +313,14 @@ sbatch jobs/train_thfood_multigpu.sh     # 1 node หลาย GPU (แก้ไ
 sbatch jobs/train_thfood_multinode.sh    # หลาย node (แก้ไข --nodes / --gpus-per-node / --ntasks-per-node ให้ตรงกัน)
 ```
 
-`jobs/train_thfood_multigpu.sh` (node เดียว) รันผ่าน `torchrun` ส่วน
+ทั้ง `jobs/train_thfood_multigpu.sh` (node เดียว) และ
 `jobs/train_thfood_multinode.sh` (ข้ามหลาย node) รันผ่าน `srun python`
 โดยตรง หนึ่ง process ต่อหนึ่ง GPU — ตาม pattern ที่ ThaiSC/LANTA แนะนำสำหรับ
-PyTorch แบบ multi-node เพราะ rendezvous ของ `torchrun` เองไม่สามารถ connect
-ข้าม node บนเครือข่ายของ LANTA ได้ (ดู [ARCHITECTURE.md](ARCHITECTURE.md)
-§9 สำหรับรายละเอียด)
+PyTorch แบบ multi-GPU/multi-node แทนที่จะใช้ `torchrun` (rendezvous ของ
+`torchrun` เองไม่สามารถ connect ข้าม node บนเครือข่ายของ LANTA ได้ — ดู
+[ARCHITECTURE.md](ARCHITECTURE.md) §9 สำหรับรายละเอียด) ส่วนคำสั่ง
+`torchrun` ด้านบนยังใช้ได้ปกติสำหรับรันแบบ local/interactive ที่ไม่ผ่าน
+Slurm เท่านั้น
 
 `training.batch_size` ใน config คือ batch size **ต่อ GPU หนึ่งตัว (per-GPU)**
 — batch size ที่ใช้จริง (effective/global) คือ `batch_size × จำนวน GPU

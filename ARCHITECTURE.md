@@ -29,9 +29,9 @@
    และการแบ่ง workspace ระหว่าง shared `/project` checkout กับ `$HOME`
    ส่วนตัวของนักเรียนที่คำนึงถึง quota (ดู `jobs/` ด้านล่าง)
 6. **Scale ไปสู่ multi-GPU / multi-node ได้โดยไม่ต้องแก้ config หรือโค้ด**
-   (Lab 2 / THFOOD-100) — รัน config ไฟล์เดิมด้วย `torchrun` แทน `python`
-   แล้ว `Trainer` จะฝึกโมเดลด้วย `DistributedDataParallel` ข้ามทุก GPU ที่
-   ได้รับมา ดู §9
+   (Lab 2 / THFOOD-100) — รัน config ไฟล์เดิมผ่าน `srun python` แทน
+   `python` เฉยๆ (บน Slurm) แล้ว `Trainer` จะฝึกโมเดลด้วย
+   `DistributedDataParallel` ข้ามทุก GPU ที่ได้รับมา ดู §9
 
 ---
 
@@ -169,8 +169,8 @@ $SLURM_SUBMIT_DIR` → `source ./project.env` → `module load Mamba` +
 | `train_cpu.sh` | `compute` | ครึ่ง CPU ของ Lab 1 |
 | `train_gpu.sh` | `gpu` (1× A100) | ตัวเก็บข้อมูล `nvidia-smi -l 5` ที่รันเบื้องหลัง → `logs/gpu-usage-<jobid>.csv` |
 | `train_thfood.sh` | `gpu` | ส่งต่อ argument เพิ่มเติมให้ `train.py` สำหรับ sweep |
-| `train_thfood_multigpu.sh` | `gpu` | เหมือน `train_thfood.sh` แต่รันผ่าน `torchrun --standalone --nproc_per_node=<N>` สำหรับ `N` GPU บน node เดียว (DDP, ดู §9) |
-| `train_thfood_multinode.sh` | `gpu` | `srun python` — หนึ่ง process ต่อหนึ่ง GPU โดยตรง ไม่ผ่าน `torchrun` (DDP, ดู §9) |
+| `train_thfood_multigpu.sh` | `gpu` | เหมือน `train_thfood.sh` แต่รันผ่าน `srun python` — หนึ่ง process ต่อหนึ่ง GPU บน node เดียว ไม่ผ่าน `torchrun` (DDP, ดู §9) |
+| `train_thfood_multinode.sh` | `gpu` | `srun python` แบบเดียวกัน ข้ามหลาย node (DDP, ดู §9) |
 | `benchmark.sh` | `gpu` | Benchmark โมเดลทั้งสี่ตัวในหนึ่ง job |
 
 #### การแบ่ง quota: shared `/project` กับ personal `$HOME`
@@ -335,17 +335,21 @@ Lightning หรือ training framework อื่นๆ เพราะตั�
 
 Lab 2 / THFOOD-100 สามารถ scale ไปสู่หลาย GPU และหลาย node ได้โดย **ไม่ต้อง
 แก้ config หรือ source code เลย** — `configs/thfood_baseline.yaml` ไฟล์เดิม
-ที่รันบน GPU เดียวได้ ก็รันผ่าน `torchrun` ได้เช่นกัน ส่วน Lab 1 / MNIST ไม่มี
-ความสามารถนี้ (ดูเหตุผลด้านล่าง) — เพราะโมเดลมีขนาดเล็กเกินกว่าที่ multi-GPU
-จะเพิ่มความซับซ้อนแล้วคุ้มค่ากับ speedup ที่จะแสดงให้เห็น
+ที่รันบน GPU เดียวได้ ก็รันผ่าน `srun python` บน Slurm ได้เช่นกัน ส่วน
+Lab 1 / MNIST ไม่มีความสามารถนี้ (ดูเหตุผลด้านล่าง) — เพราะโมเดลมีขนาดเล็ก
+เกินกว่าที่ multi-GPU จะเพิ่มความซับซ้อนแล้วคุ้มค่ากับ speedup ที่จะแสดงให้
+เห็น
 
 **สอง launch style ที่รองรับ**, ทั้งคู่เข้า `trainer.utils.init_distributed`
 จุดเดียวกัน:
 
-- **`torchrun`** (`jobs/train_thfood_multigpu.sh`, node เดียว) — ตั้งค่า
-  `RANK` / `WORLD_SIZE` / `LOCAL_RANK` ให้เองผ่าน rendezvous ภายในของมันเอง
-- **`srun python` โดยตรง** (`jobs/train_thfood_multinode.sh`, ข้ามหลาย
-  node) — Slurm สั่ง process หนึ่งตัวต่อหนึ่ง GPU โดยตรง แล้ว rank มาจาก
+- **`torchrun`** — สำหรับรันแบบ local/interactive ที่ไม่ผ่าน Slurm เท่านั้น
+  (เช่น `torchrun --standalone --nproc_per_node=2 scripts/train.py ...`
+  ตามตัวอย่างใน README) ตั้งค่า `RANK` / `WORLD_SIZE` / `LOCAL_RANK` ให้เอง
+  ผ่าน rendezvous ภายในของมันเอง
+- **`srun python` โดยตรง** — ใช้โดยทั้ง `jobs/train_thfood_multigpu.sh`
+  (node เดียว) และ `jobs/train_thfood_multinode.sh` (ข้ามหลาย node) บน
+  Slurm — Slurm สั่ง process หนึ่งตัวต่อหนึ่ง GPU โดยตรง แล้ว rank มาจาก
   `SLURM_PROCID`/`SLURM_LOCALID`/`SLURM_NTASKS` แทน; job script เป็นคน
   export `MASTER_ADDR`/`MASTER_PORT` เอง วิธีนี้ตรงกับ pattern ที่ ThaiSC/
   LANTA ใช้เป็นทางการสำหรับ PyTorch multi-GPU/multi-node — เลี่ยงปัญหาที่
@@ -417,8 +421,8 @@ Lab 2 / THFOOD-100 สามารถ scale ไปสู่หลาย GPU แ�
 นี่คือธรรมเนียมมาตรฐานของ DDP และสอดคล้องกับที่ `dataset.num_workers` scale
 ตาม process อยู่แล้ว (แต่ละ GPU process มี DataLoader worker เป็นของตัวเอง)
 
-**วิธีรัน**: ผ่าน `jobs/train_thfood_multigpu.sh` (node เดียว, ผ่าน
-`torchrun --standalone`) และ `jobs/train_thfood_multinode.sh` (หลาย node,
-ผ่าน `srun python` โดยตรงหนึ่ง process ต่อหนึ่ง GPU — ดูเหตุผลด้านบน) — ดู
-ตาราง `jobs/` ใน §3 และหัวข้อ "การฝึกแบบ Multi-GPU / Multi-node" ใน README
+**วิธีรัน**: ผ่าน `jobs/train_thfood_multigpu.sh` (node เดียว) และ
+`jobs/train_thfood_multinode.sh` (หลาย node) — ทั้งคู่ใช้ `srun python`
+โดยตรง หนึ่ง process ต่อหนึ่ง GPU (ดูเหตุผลด้านบน) — ดูตาราง `jobs/` ใน §3
+และหัวข้อ "การฝึกแบบ Multi-GPU / Multi-node" ใน README
 สำหรับคำสั่งที่ใช้
