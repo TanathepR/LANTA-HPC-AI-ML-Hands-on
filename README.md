@@ -28,11 +28,11 @@ training_ai_ml/
 │
 ├── configs/                 # ไฟล์ YAML หนึ่งไฟล์ = การทดลองหนึ่งครั้ง
 │   ├── default.yaml         #   config อ้างอิงที่มีคำอธิบายครบทุกฟิลด์
-│   ├── mnist_cpu.yaml       #   Lab 1: CPU
-│   ├── mnist_gpu.yaml       #   Lab 1: GPU (เหมือนกันทุกอย่าง ต่างแค่ `device`)
-│   ├── thfood_baseline.yaml #   Lab 2: baseline ด้วย ResNet-18
-│   ├── thfood_sample.yaml   #   Lab 2: ทดสอบระบบเบื้องต้น (smoke test) ด้วยข้อมูลตัวอย่างที่แนบมาให้
-│   └── thfood_competition.yaml  # Lab 2: พื้นที่สำหรับทดลองปรับแต่ง (tuning) ของคุณเอง
+│   ├── mnist_cpu.yaml       #   Demo: CPU
+│   ├── mnist_gpu.yaml       #   Demo: GPU (เหมือนกันทุกอย่าง ต่างแค่ `device`)
+│   ├── thfood_baseline.yaml #   Hands-on: baseline ด้วย ResNet-18
+│   ├── thfood_sample.yaml   #   Hands-on: ทดสอบระบบเบื้องต้น (smoke test) ด้วยข้อมูลตัวอย่างที่แนบมาให้
+│   └── thfood_competition.yaml  # Hands-on: พื้นที่สำหรับทดลองปรับแต่ง (tuning) ของคุณเอง
 │
 ├── datasets/                # การโหลดข้อมูล (MNIST ดาวน์โหลดอัตโนมัติ, THFOOD แบบ ImageFolder)
 ├── models/                  # LeNet-5, ResNet-18, MobileNetV3, EfficientNet-B0
@@ -155,7 +155,7 @@ directory (`setup_project.sh` จะแสดงคำสั่งชุดเ�
    ```bash
    python datasets/download.py --dataset mnist --root ./data
    ```
-2. ดาวน์โหลด ImageNet weights สำหรับ Lab 2 (cache ไว้ที่ `~/.cache/torch`):
+2. ดาวน์โหลด ImageNet weights สำหรับ Hands-on (cache ไว้ที่ `~/.cache/torch`):
    ```bash
    python -c "import torchvision.models as m; \
        m.resnet18(weights=m.ResNet18_Weights.IMAGENET1K_V1); \
@@ -381,7 +381,7 @@ checkpoint ที่ต้องการเก็บไว้ไปยัง `c
 ตัวเลขจะแตกต่างกันไปตามฮาร์ดแวร์และภาระงานของ node — ตัวเลขเหล่านี้เป็นเพียง
 ค่าประมาณสำหรับตรวจสอบว่าผลการรันของคุณอยู่ในเกณฑ์ที่สมเหตุสมผล
 
-**Lab 1 — MNIST, LeNet-5, 5 epochs, batch 128:**
+**Demo — MNIST, LeNet-5, 5 epochs, batch 128:**
 
 | | CPU (16 cores) | 1x A100 GPU |
 |--|--|--|
@@ -389,7 +389,7 @@ checkpoint ที่ต้องการเก็บไว้ไปยัง `c
 | Throughput | ~1,000–2,000 img/s | ~6,000–12,000 img/s |
 | Val accuracy สุดท้าย | ~99% | ~99% (หลักการคำนวณเดียวกัน ผลลัพธ์เดียวกัน) |
 
-**Lab 2 — THFOOD-100 baseline (ResNet-18, 5 epochs, 1x A100):**
+**Hands-on — THFOOD-100 baseline (ResNet-18, 5 epochs, 1x A100):**
 
 | | ค่า |
 |--|--|
