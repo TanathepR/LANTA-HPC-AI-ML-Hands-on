@@ -1,0 +1,61 @@
+# =============================================================================
+# LAB 2 — THFOOD-100 baseline (transfer learning with ResNet-18)
+# =============================================================================
+# A pretrained ImageNet backbone is fine-tuned on 100 Thai food classes.
+#
+#     python scripts/train.py --config configs/thfood_baseline.yaml
+#
+# The dataset must already be prepared as ImageFolder splits:
+#     ./data/thfood100/train/<class_name>/*.jpg
+#     ./data/thfood100/val/<class_name>/*.jpg
+#     ./data/thfood100/test/<class_name>/*.jpg
+#
+# This same config also works unchanged for multi-GPU / multi-node training
+# — launch it with `torchrun` instead of `python` (see jobs/
+# train_thfood_multigpu.sh and jobs/train_thfood_multinode.sh). training.
+# batch_size below is then the PER-GPU batch size, not the global one.
+# =============================================================================
+
+experiment:
+  name: thfood_baseline
+  seed: 42
+  deterministic: false
+  output_dir: ./outputs
+  log_dir: ./logs
+
+dataset:
+  name: thfood100
+  root: ./data/thfood100
+  img_size: 224            # Standard ImageNet input resolution
+  augmentation: basic      # RandomResizedCrop + horizontal flip
+  num_workers: 8
+  pin_memory: true
+
+model:
+  name: resnet18           # Try: resnet18 | mobilenetv3 | efficientnet_b0
+  pretrained: true         # Transfer learning: start from ImageNet weights
+  freeze_backbone: false   # true = only train the classifier head (faster, less accurate)
+
+training:
+  batch_size: 64
+  epochs: 5
+  lr: 0.0003               # Small LR — we fine-tune, we don't train from scratch
+  amp: true                # Mixed precision: much faster on A100 GPUs
+  early_stopping:
+    enabled: false
+    patience: 5
+    min_delta: 0.0
+
+loss:
+  name: cross_entropy
+  label_smoothing: 0.0
+
+optimizer:
+  name: AdamW
+  weight_decay: 0.01
+
+scheduler:
+  name: CosineAnnealingLR  # Smoothly decays LR to min_lr over all epochs
+  min_lr: 0.00001
+
+device: cuda

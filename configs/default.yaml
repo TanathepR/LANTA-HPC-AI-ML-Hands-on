@@ -1,0 +1,66 @@
+# =============================================================================
+# DEFAULT CONFIGURATION — fully documented reference
+# =============================================================================
+# Every training run is described by one YAML file like this one.
+# Copy it, change values, and pass it to the training script:
+#
+#     python scripts/train.py --config configs/default.yaml
+#
+# No source-code changes are ever needed for the labs — only config changes.
+# =============================================================================
+
+experiment:
+  name: default            # Results go to outputs/<name>/ and logs/<name>/
+  seed: 42                 # Random seed for reproducibility
+  deterministic: false     # true = bit-exact reproducible runs (slower on GPU)
+  output_dir: ./outputs    # Where best.pt / last.pt / config.yaml / metrics.json go
+  log_dir: ./logs          # Where TensorBoard event files go
+
+dataset:
+  name: mnist              # mnist | thfood100
+  root: ./data             # Data location (MNIST downloads itself here)
+  img_size: 28             # Input resolution (28 for MNIST, 224 for THFOOD-100)
+  augmentation: none       # none | basic | strong   (image datasets only)
+  num_workers: 4           # DataLoader worker processes (match Slurm --cpus-per-task)
+  pin_memory: true         # Faster host-to-GPU copies (ignored on CPU)
+
+model:
+  name: lenet              # lenet | resnet18 | mobilenetv3 | efficientnet_b0
+  pretrained: false        # Load ImageNet weights (transfer learning, Lab 2)
+  freeze_backbone: false   # true = train only the new classifier head
+  in_channels: 1           # Input channels — lenet only (1 = grayscale MNIST)
+
+training:
+  batch_size: 128          # Images per training step (PER GPU under multi-GPU/multi-node — see below)
+  epochs: 5                # Full passes over the training set
+  lr: 0.001                # Base learning rate
+  amp: false               # Automatic Mixed Precision (GPU only — big speedup)
+  early_stopping:
+    enabled: false
+    patience: 5            # Stop after N epochs without val-accuracy improvement
+    min_delta: 0.0         # Minimum improvement that counts (fraction, e.g. 0.001)
+
+loss:
+  name: cross_entropy      # The standard classification loss
+  label_smoothing: 0.0     # 0.1 often helps on harder datasets
+
+optimizer:
+  name: AdamW              # SGD | Adam | AdamW
+  weight_decay: 0.0001     # L2-style regularization
+  momentum: 0.9            # SGD only
+
+scheduler:
+  name: none               # none | StepLR | MultiStepLR | CosineAnnealingLR | ReduceLROnPlateau
+  step_size: 10            # StepLR: epochs between LR drops
+  gamma: 0.1               # StepLR / MultiStepLR / ReduceLROnPlateau: decay factor
+  milestones: [10, 15]     # MultiStepLR: epochs at which LR drops
+  min_lr: 0.0              # CosineAnnealingLR: final learning rate
+  patience: 3              # ReduceLROnPlateau: epochs to wait before dropping LR
+
+device: cuda               # cuda | cpu   (falls back to cpu if no GPU is found)
+
+# Multi-GPU / multi-node training (Lab 2 / THFOOD-100 only) needs no config
+# changes at all: launch this same file with `torchrun` instead of `python`
+# and it trains with DistributedDataParallel across every GPU torchrun was
+# given. See jobs/train_thfood_multigpu.sh (1 node) and
+# jobs/train_thfood_multinode.sh (multiple nodes).
