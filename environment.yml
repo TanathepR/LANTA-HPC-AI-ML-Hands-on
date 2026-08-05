@@ -14,8 +14,9 @@ dependencies:
   # PyTorch is installed through pip so we get the official CUDA-enabled
   # wheels that match the A100 GPUs on LANTA.
   - pip:
-      - torch>=2.3
-      - torchvision>=0.18
+      - --extra-index-url https://download.pytorch.org/whl/cu124
+      - torch==2.5.1
+      - torchvision==0.20.1
       - PyYAML>=6.0
       - tensorboard>=2.16
       - tqdm>=4.66

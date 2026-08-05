@@ -3,7 +3,7 @@
 # ONE-TIME setup of YOUR personal workspace, for use with a shared /project
 # copy of this workshop (see setup_project.sh). Run once, from anywhere:
 #
-#   bash /project/tn999996-north/hpc-ai-workshop/setup_user.sh
+#   bash /project/tn999996-north/training_ai_ml/setup_user.sh
 #
 # Optional arguments:
 #   $1 = path to the shared project checkout (default: where this script
@@ -29,7 +29,7 @@ echo "Workspace   : ${WORKSPACE}"
 if [ ! -d "${PROJECT_DIR}/scripts" ] || [ ! -d "${PROJECT_DIR}/configs" ]; then
     echo "ERROR: '${PROJECT_DIR}' does not look like the workshop repo (no scripts/ or configs/ found)."
     echo "Pass the shared project checkout path as the first argument, e.g.:"
-    echo "  bash setup_user.sh /project/tn999996-north/hpc-ai-workshop"
+    echo "  bash setup_user.sh /project/tn999996-north/training_ai_ml"
     exit 1
 fi
 
@@ -60,6 +60,9 @@ fi
 [ -d "${WORKSPACE}/jobs" ] || cp -r "${PROJECT_DIR}/jobs" "${WORKSPACE}/"
 mkdir -p "${WORKSPACE}/checkpoints" "${WORKSPACE}/outputs" "${WORKSPACE}/logs"
 
+# link script file in project to user
+ln -sfn "${PROJECT_DIR}/scripts" "${WORKSPACE}/scripts"
+
 cat > "${WORKSPACE}/project.env" <<EOF
 # Written by setup_user.sh — points your job scripts at the shared
 # /project checkout (code + conda environment) and the shared PyTorch
@@ -85,6 +88,7 @@ echo "  jobs/         -> your own copies of the Slurm scripts, edit freely"
 echo "  checkpoints/  -> keep your best checkpoints here (survives re-runs)"
 echo "  outputs/      -> per-run results (checkpoints, metrics, config copy)"
 echo "  logs/         -> TensorBoard event files + Slurm logs"
+echo "  scripts/      -> link shared script files to your home (train, benchmark, evaluate, predict, export)"
 echo
 echo "Next steps:"
 echo "  cd ${WORKSPACE}"

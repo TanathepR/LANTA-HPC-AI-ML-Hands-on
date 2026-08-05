@@ -1,245 +1,281 @@
 # HPC AI/ML Training Workshop
 
-Hands-on labs for **AI training on the LANTA supercomputer**: GPU acceleration,
-Slurm job submission, reproducible experiments, and hyperparameter tuning —
-all with plain PyTorch.
+เอกสารประกอบการฝึกปฏิบัติ (hands-on labs) สำหรับการฝึกโมเดล AI บนซูเปอร์คอมพิวเตอร์
+**LANTA** ครอบคลุมหัวข้อการเร่งความเร็วด้วย GPU (GPU acceleration) การส่งงานผ่าน
+Slurm (Slurm job submission) การทดลองที่ทำซ้ำได้ (reproducible experiments) และ
+การปรับแต่งไฮเปอร์พารามิเตอร์ (hyperparameter tuning) โดยใช้ PyTorch แบบพื้นฐานทั้งหมด
 
-| Lab | Task | What you learn |
+| Lab | หัวข้อ | สิ่งที่จะได้เรียนรู้ |
 |-----|------|----------------|
-| **Lab 1** | MNIST digit classification | CPU vs. GPU: training time, throughput, GPU utilization — same code, only the config changes |
-| **Lab 2** | THFOOD-100 Thai food classification | Transfer learning + hyperparameter tuning — no source code edits, only YAML changes |
+| **Lab 1** | การจำแนกตัวเลขลายมือ MNIST (MNIST digit classification) | เปรียบเทียบ CPU กับ GPU: เวลาในการฝึกโมเดล (training time), throughput, การใช้งาน GPU (GPU utilization) — ใช้โค้ดชุดเดียวกัน เปลี่ยนแค่ config |
+| **Lab 2** | การจำแนกอาหารไทย THFOOD-100 (THFOOD-100 Thai food classification) | Transfer learning ร่วมกับการปรับแต่งไฮเปอร์พารามิเตอร์ — ไม่ต้องแก้ source code แก้เพียงไฟล์ YAML |
 
-Everything is driven by **YAML configuration files**. Students never need to
-edit Python source code to complete the labs.
+ทุกการทดลองถูกควบคุมด้วย **ไฟล์การตั้งค่า YAML (YAML configuration files)** ทั้งหมด
+นักเรียนไม่จำเป็นต้องแก้ไข source code ภาษา Python เพื่อทำแลปให้สำเร็จ
 
 ---
 
-## Folder Structure
+## โครงสร้างโฟลเดอร์
 
 ```
 training_ai_ml/
 ├── README.md
-├── requirements.txt         # pip dependencies
-├── environment.yml          # conda environment (Python 3.11)
-├── setup.sh                 # one-time environment setup (solo use)
-├── setup_project.sh         # one-time SHARED setup for a class (see below)
-├── setup_user.sh            # one-time personal workspace setup for each student
+├── requirements.txt         # รายการ dependency สำหรับ pip
+├── environment.yml          # environment ของ conda (Python 3.11)
+├── setup.sh                 # ตั้งค่า environment ครั้งเดียว (สำหรับใช้งานคนเดียว)
+├── setup_project.sh         # ตั้งค่าแบบ SHARED สำหรับทั้งคลาสเรียน ครั้งเดียว (ดูรายละเอียดด้านล่าง)
+├── setup_user.sh            # ตั้งค่า workspace ส่วนตัวให้นักเรียนแต่ละคน ครั้งเดียว
 │
-├── configs/                 # one YAML file = one experiment
-│   ├── default.yaml         #   fully documented reference config
+├── configs/                 # ไฟล์ YAML หนึ่งไฟล์ = การทดลองหนึ่งครั้ง
+│   ├── default.yaml         #   config อ้างอิงที่มีคำอธิบายครบทุกฟิลด์
 │   ├── mnist_cpu.yaml       #   Lab 1: CPU
-│   ├── mnist_gpu.yaml       #   Lab 1: GPU (identical except `device`)
-│   ├── thfood_baseline.yaml #   Lab 2: ResNet-18 baseline
-│   ├── thfood_sample.yaml   #   Lab 2: smoke test on the bundled sample data
-│   └── thfood_competition.yaml  # Lab 2: your tuning playground
+│   ├── mnist_gpu.yaml       #   Lab 1: GPU (เหมือนกันทุกอย่าง ต่างแค่ `device`)
+│   ├── thfood_baseline.yaml #   Lab 2: baseline ด้วย ResNet-18
+│   ├── thfood_sample.yaml   #   Lab 2: ทดสอบระบบเบื้องต้น (smoke test) ด้วยข้อมูลตัวอย่างที่แนบมาให้
+│   └── thfood_competition.yaml  # Lab 2: พื้นที่สำหรับทดลองปรับแต่ง (tuning) ของคุณเอง
 │
-├── datasets/                # data loading (MNIST auto-download, THFOOD ImageFolder)
+├── datasets/                # การโหลดข้อมูล (MNIST ดาวน์โหลดอัตโนมัติ, THFOOD แบบ ImageFolder)
 ├── models/                  # LeNet-5, ResNet-18, MobileNetV3, EfficientNet-B0
-├── trainer/                 # Trainer class, train/val loops, losses, metrics, utils
+├── trainer/                 # คลาส Trainer, ลูปการฝึก/ตรวจสอบ (train/val loops), losses, metrics, utils
 ├── scripts/                 # train / evaluate / predict / benchmark / export
-├── jobs/                    # Slurm submission scripts for LANTA
+├── jobs/                    # สคริปต์สำหรับส่งงานผ่าน Slurm บน LANTA
 │
-├── checkpoints/             # (optional) long-term storage for good checkpoints
-├── logs/                    # TensorBoard events + Slurm output + GPU-usage CSVs
-└── outputs/                 # per-experiment results (checkpoints, metrics, config copy)
+├── checkpoints/             # (ทางเลือก) สำหรับเก็บ checkpoint ที่ดีไว้ใช้ในระยะยาว
+├── logs/                    # ข้อมูล TensorBoard + ผลลัพธ์ของ Slurm + ไฟล์ CSV การใช้งาน GPU
+└── outputs/                 # ผลลัพธ์ของแต่ละการทดลอง (checkpoint, metrics, สำเนา config)
 ```
 
 ---
 
-## Installation
+## การติดตั้ง (Installation)
 
-### On LANTA, solo (one person, one project quota)
+### บน LANTA แบบใช้งานคนเดียว (solo, หนึ่ง project quota)
 
-```bash
-module load Mamba/23.11.0-0     # LANTA's conda distribution
-bash setup.sh                   # creates the 'hpc-ai' conda env (Python 3.11)
-conda activate hpc-ai
-```
+ทำตามขั้นตอนต่อไปนี้ตามลำดับ:
 
-### On LANTA, for a class (shared project quota — recommended)
+1. โหลดโมดูล conda distribution ของ LANTA:
+   ```bash
+   module load Mamba/23.11.0-0
+   ```
+2. รันสคริปต์ติดตั้งเพื่อสร้าง conda environment ชื่อ `hpc-ai` (Python 3.11):
+   ```bash
+   bash setup.sh
+   ```
+3. เปิดใช้งาน environment:
+   ```bash
+   conda activate hpc-ai
+   ```
 
-Home directories on LANTA have a small quota (e.g. **100 GB / 600k inodes**),
-while `/project` typically has a much larger one (e.g. **30 TB / 300M
-inodes**). For a workshop with many students sharing one project account,
-put the heavy, shared parts — the code, the conda environment, and the
-datasets — on `/project` **once**, and give each student only a small
-personal workspace in their own `$HOME` for the things they actually edit
-and produce (configs, Slurm scripts, checkpoints, run outputs, logs).
+### บน LANTA สำหรับทั้งคลาสเรียน (ใช้ project quota ร่วมกัน — แนะนำ)
 
-**Instructor / project owner, once:**
+Home directory บน LANTA มี quota ค่อนข้างจำกัด (เช่น **100 GB / 600,000 inodes**)
+ในขณะที่ `/project` มักมี quota ที่ใหญ่กว่ามาก (เช่น **30 TB / 300 ล้าน inodes**)
+สำหรับเวิร์กช็อปที่มีนักเรียนหลายคนใช้ project account ร่วมกัน ให้นำส่วนที่หนักและ
+ใช้ร่วมกัน — โค้ด, conda environment, และชุดข้อมูล (datasets) — ไปไว้ที่ `/project`
+**เพียงครั้งเดียว** แล้วให้นักเรียนแต่ละคนมี workspace ส่วนตัวขนาดเล็กใน `$HOME`
+ของตนเอง สำหรับสิ่งที่ต้องแก้ไขและสร้างผลลัพธ์จริง (configs, สคริปต์ Slurm,
+checkpoints, ผลลัพธ์การรัน, logs)
 
-```bash
-git clone <repo-url> /project/tn999996-north/hpc-ai-workshop
-cd /project/tn999996-north/hpc-ai-workshop
-module load Mamba/23.11.0-0
-bash setup_project.sh           # builds the conda env inside ./envs/hpc-ai
-                                 # (never touches anyone's home quota)
-```
+**ขั้นตอนสำหรับผู้สอน / เจ้าของ project (ทำครั้งเดียว):**
 
-`setup_project.sh` prints the next steps: pre-downloading MNIST and the
-ImageNet weights on a login node, and where to place the full THFOOD-100
-dataset (`data/thfood100/`) — all under the shared project directory.
-PyTorch's pretrained-weight cache (`TORCH_HOME`) is per-user by default, so
-this download must be pointed at a shared path under `/project` (the
-printed instructions show the exact `export TORCH_HOME=...` command) —
-otherwise every student's job would try and fail to re-download the same
-weights from a no-internet compute node. `setup_user.sh` sets this up
-automatically for each student via `project.env`.
+1. Clone repository ไปยัง `/project`:
+   ```bash
+   git clone <repo-url> /project/tn999996-north/training_ai_ml
+   cd /project/tn999996-north/training_ai_ml
+   ```
+2. โหลดโมดูล conda distribution ของ LANTA:
+   ```bash
+   module load Mamba/23.11.0-0
+   ```
+3. รันสคริปต์ตั้งค่า project เพื่อสร้าง conda environment ไว้ใน `./envs/hpc-ai`
+   (ไม่แตะ home quota ของใครเลย):
+   ```bash
+   bash setup_project.sh
+   ```
+4. ทำตามขั้นตอนถัดไปที่ `setup_project.sh` แสดงไว้: ดาวน์โหลด MNIST และ
+   ImageNet weights ล่วงหน้าบน login node และวางชุดข้อมูล THFOOD-100 แบบเต็ม
+   ไว้ที่ `data/thfood100/` — ทั้งหมดนี้อยู่ภายใต้ shared project directory
+   โดยปกติ cache ของ pretrained weights ใน PyTorch (`TORCH_HOME`) จะแยกตาม
+   user แต่ละคน ดังนั้นการดาวน์โหลดนี้ต้องชี้ไปยัง path ที่ใช้ร่วมกันภายใต้
+   `/project` (คำสั่ง `export TORCH_HOME=...` ที่ถูกต้องจะถูกแสดงในขั้นตอนนั้น)
+   — มิเช่นนั้นงานของนักเรียนแต่ละคนจะพยายามดาวน์โหลด weights ชุดเดิมซ้ำและ
+   ล้มเหลว เนื่องจาก compute node ไม่มีอินเทอร์เน็ต `setup_user.sh` จะตั้งค่า
+   นี้ให้อัตโนมัติสำหรับนักเรียนแต่ละคนผ่านไฟล์ `project.env`
 
-**Each student, once:**
+**ขั้นตอนสำหรับนักเรียนแต่ละคน (ทำครั้งเดียว):**
 
-```bash
-bash /project/tn999996-north/hpc-ai-workshop/setup_user.sh
-```
+1. รันสคริปต์ตั้งค่า workspace ส่วนตัว:
+   ```bash
+   bash /project/tn999996-north/training_ai_ml/setup_user.sh
+   ```
+   คำสั่งนี้จะสร้าง `~/hpc-ai-workshop/` ซึ่งมีสำเนา `configs/` และ `jobs/`
+   ของคุณเอง (แก้ไขได้อย่างอิสระ) พร้อมโฟลเดอร์ `checkpoints/`, `outputs/`,
+   และ `logs/` ที่ยังว่างเปล่าไว้สำหรับผลการรันของคุณ นอกจากนี้ยังลงทะเบียน
+   โฟลเดอร์ `envs/` ของ project ไว้ใน `~/.condarc` ของคุณเอง ทำให้
+   **`conda activate hpc-ai` ใช้งานได้จากทุกที่ด้วยชื่อ environment โดยตรง**
+   — ตัว environment เองยังคงอยู่บน `/project` ทั้งหมด ไม่แตะ home quota ของ
+   คุณเลย ไฟล์ `project.env` จะบันทึกตำแหน่งของโค้ดที่ใช้ร่วมกันไว้ เพื่อให้
+   สคริปต์ใน `jobs/` รู้ว่าจะไปหาโค้ดได้จากที่ใด เนื่องจาก job จะรันโดยใช้
+   workspace นี้ (ไม่ใช่ `/project`) เป็น working directory ดังนั้น
+   `setup_user.sh` จะแก้ไข `dataset.root` ในสำเนา config ให้เปลี่ยนจาก path
+   สัมพัทธ์ (relative path) เดิม `./data/...` เป็น absolute path ภายใต้
+   shared project แทน — มิเช่นนั้นจะไป resolve เป็นโฟลเดอร์ที่ไม่มีอยู่จริงใน
+   `$HOME`
+2. ย้ายไปทำงานที่ workspace ส่วนตัว แก้ไข account แล้วส่งงานทดสอบ:
+   ```bash
+   cd ~/hpc-ai-workshop
+   # แก้ไข jobs/*.sh: ตั้งค่า #SBATCH --account=ltXXXXXX ให้เป็น account ของคุณบน LANTA
+   sbatch jobs/train_cpu.sh
+   ```
+   จากนั้นให้ทำงานทั้งหมดจาก workspace ส่วนตัวนี้ (`~/hpc-ai-workshop/`) ต่อไป
 
-This creates `~/hpc-ai-workshop/` containing your own copies of `configs/`
-and `jobs/` (edit these freely) plus empty `checkpoints/`, `outputs/`, and
-`logs/` directories for your runs. It also registers the project's `envs/`
-directory in your own `~/.condarc`, so **`conda activate hpc-ai` works by
-name from anywhere** — the environment itself still lives entirely on
-`/project`, never in your home quota. A `project.env` file records where
-the shared code lives, so the job scripts in `jobs/` know where to find it.
-Jobs run with this workspace (not `/project`) as the working directory, so
-`setup_user.sh` also rewrites the copied configs' `dataset.root` from the
-default relative `./data/...` to an absolute path under the shared
-project — otherwise it would resolve to a nonexistent folder under
-`$HOME`. From then on, work entirely from your personal workspace:
+### ในเครื่องอื่นๆ (Anywhere else)
 
-```bash
-cd ~/hpc-ai-workshop
-# edit jobs/*.sh: set #SBATCH --account=ltXXXXXX to your LANTA account
-sbatch jobs/train_cpu.sh
-```
+เลือกทำวิธีใดวิธีหนึ่งต่อไปนี้:
 
-### Anywhere else
+1. สร้างและเปิดใช้งาน environment ด้วย conda:
+   ```bash
+   conda env create -f environment.yml && conda activate hpc-ai
+   ```
+   หรือ
+2. ใช้ pip ธรรมดาใน environment ของ Python 3.11 ที่มีอยู่แล้ว:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-conda env create -f environment.yml && conda activate hpc-ai
-# or, with plain pip in a Python 3.11 environment:
-pip install -r requirements.txt
-```
+### ดาวน์โหลดข้อมูลและ weights ล่วงหน้า (สำคัญมากบนคลัสเตอร์!)
 
-### Pre-download data and weights (important on clusters!)
+**compute node ของ LANTA ไม่มีการเชื่อมต่ออินเทอร์เน็ต** ดังนั้นให้ดาวน์โหลดทุก
+อย่างล่วงหน้าเพียงครั้งเดียวบน **login node** ก่อนเริ่มฝึกโมเดล ในกรณีตั้งค่าแบบ
+คลาสเรียนร่วมกันด้านบน ผู้สอนจะทำขั้นตอนนี้เพียงครั้งเดียวภายใต้ shared project
+directory (`setup_project.sh` จะแสดงคำสั่งชุดเดียวกันนี้) — นักเรียนไม่จำเป็นต้อง
+ทำซ้ำ
 
-LANTA **compute nodes have no internet access**, so download everything once
-on a **login node**. In the shared class setup above, the instructor does
-this once under the shared project directory (`setup_project.sh` prints
-these same commands) — students don't need to repeat it.
-
-```bash
-# MNIST (~12 MB)
-python datasets/download.py --dataset mnist --root ./data
-
-# ImageNet weights for Lab 2 (cached in ~/.cache/torch)
-python -c "import torchvision.models as m; \
-    m.resnet18(weights=m.ResNet18_Weights.IMAGENET1K_V1); \
-    m.mobilenet_v3_large(weights=m.MobileNet_V3_Large_Weights.IMAGENET1K_V2); \
-    m.efficientnet_b0(weights=m.EfficientNet_B0_Weights.IMAGENET1K_V1)"
-```
+1. ดาวน์โหลด MNIST (~12 MB):
+   ```bash
+   python datasets/download.py --dataset mnist --root ./data
+   ```
+2. ดาวน์โหลด ImageNet weights สำหรับ Lab 2 (cache ไว้ที่ `~/.cache/torch`):
+   ```bash
+   python -c "import torchvision.models as m; \
+       m.resnet18(weights=m.ResNet18_Weights.IMAGENET1K_V1); \
+       m.mobilenet_v3_large(weights=m.MobileNet_V3_Large_Weights.IMAGENET1K_V2); \
+       m.efficientnet_b0(weights=m.EfficientNet_B0_Weights.IMAGENET1K_V1)"
+   ```
 
 ---
 
 ## Lab 1 — CPU vs. GPU (MNIST)
 
-The two configs [mnist_cpu.yaml](configs/mnist_cpu.yaml) and
-[mnist_gpu.yaml](configs/mnist_gpu.yaml) are **identical except for
-`device`**. Train with both and compare.
+config ทั้งสองไฟล์ [mnist_cpu.yaml](configs/mnist_cpu.yaml) และ
+[mnist_gpu.yaml](configs/mnist_gpu.yaml) **เหมือนกันทุกอย่าง ต่างกันเพียง
+`device`** ให้ฝึกโมเดลด้วยทั้งสองไฟล์แล้วนำผลมาเปรียบเทียบกัน
 
-### Running locally / interactively
+### 1. ฝึกโมเดลด้วยทั้งสอง config (CPU และ GPU)
+
+เลือกวิธีใดวิธีหนึ่งต่อไปนี้ตามสภาพแวดล้อมที่ใช้งาน:
+
+**แบบ local / interactive:**
 
 ```bash
 python scripts/train.py --config configs/mnist_cpu.yaml
 python scripts/train.py --config configs/mnist_gpu.yaml
 ```
 
-### Running on LANTA via Slurm
+**แบบบน LANTA ผ่าน Slurm:**
 
-Edit the `#SBATCH --account=ltXXXXXX` line in the job scripts first, then:
+แก้ไขบรรทัด `#SBATCH --account=ltXXXXXX` ในสคริปต์ก่อน จากนั้น:
 
 ```bash
-sbatch jobs/train_cpu.sh     # queued on the 'compute' (CPU) partition
-sbatch jobs/train_gpu.sh     # queued on the 'gpu' partition (1x A100)
-squeue --me                  # watch your jobs
+sbatch jobs/train_cpu.sh     # เข้าคิวใน partition 'compute' (CPU)
+sbatch jobs/train_gpu.sh     # เข้าคิวใน partition 'gpu' (1x A100)
+squeue --me                  # ดูสถานะงานของคุณ
 ```
 
-### What to observe
+### 2. สังเกตผลลัพธ์
 
-Each epoch prints one summary line:
+แต่ละ epoch จะพิมพ์สรุปผลออกมาหนึ่งบรรทัด:
 
 ```
 Epoch   1/5 | train loss 0.2431 acc 92.51% | val loss 0.0705 acc 97.72% |   11.2s    5357 img/s | lr 1.00e-03
 ```
 
-Fill in a comparison table from your two runs:
+### 3. กรอกตารางเปรียบเทียบ
 
-| Metric | Where to find it | CPU | GPU |
+กรอกตารางเปรียบเทียบจากผลการรันทั้งสองครั้งของคุณ:
+
+| ตัวชี้วัด (Metric) | ดูได้จากที่ไหน | CPU | GPU |
 |--------|------------------|-----|-----|
-| Time per epoch (s) | epoch summary line / `metrics.json` | | |
-| Throughput (img/s) | epoch summary line / `metrics.json` | | |
-| Final val accuracy | end-of-training summary | | |
-| GPU utilization (%) | `logs/gpu-usage-<jobid>.csv` (GPU job only) | — | |
+| เวลาต่อ epoch (วินาที) | บรรทัดสรุปผลของแต่ละ epoch / `metrics.json` | | |
+| Throughput (img/s) | บรรทัดสรุปผลของแต่ละ epoch / `metrics.json` | | |
+| Val accuracy สุดท้าย | บทสรุปท้ายการฝึก | | |
+| การใช้งาน GPU (%) | `logs/gpu-usage-<jobid>.csv` (เฉพาะงาน GPU) | — | |
 
-Questions to discuss:
-1. Accuracy is (almost) identical — why?
-2. The speedup is large but the GPU utilization is low — what is the bottleneck for such a tiny model?
-3. What happens to throughput if you double `training.batch_size`? If you set `training.amp: true`?
+### 4. ตอบคำถามอภิปราย
+
+1. ความแม่นยำ (accuracy) ใกล้เคียงกัน (แทบจะเท่ากัน) — เพราะเหตุใด?
+2. อัตราเร่ง (speedup) สูงมาก แต่การใช้งาน GPU (GPU utilization) กลับต่ำ — คอขวด (bottleneck) ของโมเดลขนาดเล็กเช่นนี้คืออะไร?
+3. ถ้าเพิ่ม `training.batch_size` เป็นสองเท่า throughput จะเปลี่ยนไปอย่างไร? แล้วถ้าตั้ง `training.amp: true` ล่ะ?
 
 ---
 
-## Lab 2 — Thai Food Classification (THFOOD-100)
+## Lab 2 — การจำแนกอาหารไทย (THFOOD-100)
 
-### 1. Prepare the dataset
+### 1. เตรียมชุดข้อมูล
 
-THFOOD-100 is **not** downloaded automatically. Get it from your instructor
-(or the shared project directory on LANTA) and arrange it as
-`torchvision.datasets.ImageFolder` splits:
+THFOOD-100 **ไม่ได้** ถูกดาวน์โหลดให้อัตโนมัติ ให้ขอชุดข้อมูลจากผู้สอน (หรือจาก
+shared project directory บน LANTA) แล้วจัดเรียงในรูปแบบ
+`torchvision.datasets.ImageFolder`:
 
 ```
 data/thfood100/
 ├── train/<class_name>/*.jpg
 ├── val/<class_name>/*.jpg
-└── test/<class_name>/*.jpg      # optional — falls back to val
+└── test/<class_name>/*.jpg      # ทางเลือก — ถ้าไม่มีจะใช้ val แทน
 ```
 
-Verify the layout:
+ตรวจสอบโครงสร้างไฟล์:
 
 ```bash
 python datasets/download.py --dataset thfood100 --root ./data/thfood100
 ```
 
-Don't have the full dataset yet? This repo bundles a tiny preview at
-`data/THFOOD-100.sample/` (flat layout, no train/val/test folders, only a
-handful of images per class) — enough to smoke-test the pipeline with
-`configs/thfood_sample.yaml`, though not enough for meaningful accuracy.
-See [ARCHITECTURE.md](ARCHITECTURE.md) for how the flat layout is handled.
+ยังไม่มีชุดข้อมูลแบบเต็มใช่ไหม? repo นี้มีตัวอย่างข้อมูลขนาดเล็กแนบมาให้ที่
+`data/THFOOD-100.sample/` (โครงสร้างแบบแบน (flat layout) ไม่มีโฟลเดอร์
+train/val/test แยก มีเพียงไม่กี่รูปต่อคลาส) — เพียงพอสำหรับทดสอบระบบเบื้องต้น
+(smoke test) ด้วย `configs/thfood_sample.yaml` แต่ยังไม่เพียงพอสำหรับวัดความแม่นยำ
+ที่มีความหมาย ดู [ARCHITECTURE.md](ARCHITECTURE.md) สำหรับรายละเอียดวิธีจัดการ
+โครงสร้างแบบแบนนี้
 
-### 2. Train the baseline
+### 2. ฝึกโมเดล baseline
 
 ```bash
 python scripts/train.py --config configs/thfood_baseline.yaml
-# or on LANTA:
+# หรือบน LANTA:
 sbatch jobs/train_thfood.sh
 ```
 
-The baseline fine-tunes an **ImageNet-pretrained ResNet-18** — the backbone
-already knows edges, textures, and shapes, so only a few epochs are needed
-to adapt it to 100 Thai dishes (this is *transfer learning*).
+baseline นี้ทำ fine-tuning บน **ResNet-18 ที่ผ่านการฝึกด้วย ImageNet มาแล้ว
+(pretrained)** — backbone รู้จักขอบ พื้นผิว และรูปทรงพื้นฐานอยู่แล้ว จึงต้องการ
+เพียงไม่กี่ epoch ในการปรับให้เข้ากับอาหารไทย 100 ชนิด (นี่คือหลักการของ
+*transfer learning*)
 
-### 3. Tune hyperparameters — YAML only!
+### 3. ปรับแต่งไฮเปอร์พารามิเตอร์ — ใช้ YAML เท่านั้น!
 
-Copy [thfood_competition.yaml](configs/thfood_competition.yaml), rename the
-experiment for every attempt, and tune **only** these knobs:
+คัดลอกไฟล์ [thfood_competition.yaml](configs/thfood_competition.yaml)
+เปลี่ยนชื่อการทดลอง (experiment name) ทุกครั้งที่ลอง แล้วปรับแต่ง **เฉพาะ** ค่า
+เหล่านี้:
 
-| Knob | Config key | Things to try |
+| พารามิเตอร์ | คีย์ใน config | ค่าที่ลองปรับได้ |
 |------|------------|---------------|
-| Model | `model.name` | `resnet18`, `mobilenetv3`, `efficientnet_b0` |
+| โมเดล | `model.name` | `resnet18`, `mobilenetv3`, `efficientnet_b0` |
 | Batch size | `training.batch_size` | 32, 64, 128, 256 |
 | Learning rate | `training.lr` | 0.0001 … 0.01 |
-| Epochs | `training.epochs` | 5 … 30 (early stopping saves wasted time) |
+| จำนวน epoch | `training.epochs` | 5 … 30 (early stopping ช่วยลด epoch ที่เสียเปล่า) |
 | Optimizer | `optimizer.name` | `SGD`, `Adam`, `AdamW` |
 | Scheduler | `scheduler.name` | `none`, `StepLR`, `CosineAnnealingLR`, `ReduceLROnPlateau` |
 
-Quick experiments without editing any file (extra args are forwarded to
+ทดลองอย่างรวดเร็วโดยไม่ต้องแก้ไฟล์ใดๆ (argument เพิ่มเติมจะถูกส่งต่อไปยัง
 `train.py`):
 
 ```bash
@@ -247,126 +283,130 @@ sbatch jobs/train_thfood.sh --name thfood_lr001  --lr 0.001
 sbatch jobs/train_thfood.sh --name thfood_bs128  --batch-size 128 --lr 0.0006
 ```
 
-Every run gets its own `outputs/<name>/` and `logs/<name>/` — compare them
-all at once in TensorBoard.
+การรันแต่ละครั้งจะได้ `outputs/<name>/` และ `logs/<name>/` ของตัวเอง — สามารถ
+เปรียบเทียบทุกการทดลองพร้อมกันได้ใน TensorBoard
 
-### 4. Evaluate and predict
+### 4. ประเมินผลและทำนาย (Evaluate and predict)
 
 ```bash
-python scripts/evaluate.py --checkpoint outputs/thfood_baseline/best.pt          # test split + per-class report
+python scripts/evaluate.py --checkpoint outputs/thfood_baseline/best.pt          # ประเมินบน test split พร้อมรายงานผลรายคลาส
 python scripts/predict.py  --model outputs/thfood_baseline/best.pt --image sample.jpg
-python scripts/benchmark.py --config configs/thfood_baseline.yaml                # speed & size
-python scripts/export.py   --checkpoint outputs/thfood_baseline/best.pt          # TorchScript
+python scripts/benchmark.py --config configs/thfood_baseline.yaml                # วัดความเร็วและขนาดโมเดล
+python scripts/export.py   --checkpoint outputs/thfood_baseline/best.pt          # ส่งออกเป็น TorchScript
 ```
 
-### 5. Multi-GPU / multi-node training
+### 5. การฝึกแบบ Multi-GPU / Multi-node
 
-The same [thfood_baseline.yaml](configs/thfood_baseline.yaml) trains on
-several GPUs — one node or several — with **no config or code changes**,
-using PyTorch's `DistributedDataParallel` (DDP): each GPU trains on its own
-shard of the data, and gradients are averaged across GPUs every step, so the
-math is identical to a single-GPU run, just faster.
+config เดิม [thfood_baseline.yaml](configs/thfood_baseline.yaml) สามารถฝึกบน
+GPU หลายตัว — ไม่ว่าจะบน node เดียวหรือหลาย node — ได้โดย **ไม่ต้องแก้ config
+หรือแก้โค้ดใดๆ เลย** โดยใช้ `DistributedDataParallel` (DDP) ของ PyTorch: GPU
+แต่ละตัวจะฝึกบนข้อมูลส่วนของตัวเอง (shard) แล้วค่า gradient จะถูกเฉลี่ย
+(average) ข้าม GPU ทุก step ทำให้หลักการทางคณิตศาสตร์เหมือนกับการรันบน GPU
+เดียวทุกประการ เพียงแต่เร็วกว่า
 
 ```bash
-# Locally / interactively, e.g. 2 GPUs on one machine:
+# รันแบบ local / interactive เช่น 2 GPU บนเครื่องเดียว:
 torchrun --standalone --nproc_per_node=2 scripts/train.py --config configs/thfood_baseline.yaml
 
-# On LANTA via Slurm:
-sbatch jobs/train_thfood_multigpu.sh     # 1 node, several GPUs (edit --gpus-per-node)
-sbatch jobs/train_thfood_multinode.sh    # several nodes (edit --nodes / --gpus-per-node)
+# บน LANTA ผ่าน Slurm:
+sbatch jobs/train_thfood_multigpu.sh     # 1 node หลาย GPU (แก้ไข --gpus-per-node)
+sbatch jobs/train_thfood_multinode.sh    # หลาย node (แก้ไข --nodes / --gpus-per-node)
 ```
 
-`training.batch_size` in the config is the **per-GPU** batch size — the
-effective (global) batch size is `batch_size × total GPUs`. When comparing
-against a single-GPU baseline, scale the learning rate up accordingly (a
-common starting point is linear scaling with the global batch size).
+`training.batch_size` ใน config คือ batch size **ต่อ GPU หนึ่งตัว (per-GPU)**
+— batch size ที่ใช้จริง (effective/global) คือ `batch_size × จำนวน GPU
+ทั้งหมด` เมื่อเปรียบเทียบกับผลจาก single-GPU baseline ควรปรับ learning rate
+ให้สูงขึ้นตามสัดส่วน (จุดเริ่มต้นที่นิยมใช้คือ linear scaling ตาม global batch
+size)
 
-`images/sec` in the epoch summary line and TensorBoard is the **aggregate**
-throughput across every GPU — that's the number to compare against the
-single-GPU run from step 2 to see how well training scales.
+`images/sec` ในบรรทัดสรุปผลของแต่ละ epoch และใน TensorBoard คือ throughput
+**รวม (aggregate)** ของทุก GPU — ตัวเลขนี้แหละที่ควรนำไปเปรียบเทียบกับผลจาก
+single-GPU run ในขั้นตอนที่ 2 เพื่อดูว่าการฝึกแบบขนาน scale ได้ดีเพียงใด
 
 ---
 
 ## TensorBoard
 
-Every run logs loss, accuracy, learning rate, epoch time, and throughput to
-`logs/<experiment_name>/`.
+ทุกการรันจะบันทึก loss, accuracy, learning rate, เวลาต่อ epoch, และ throughput
+ไว้ที่ `logs/<experiment_name>/`
 
-**Locally:**
+**แบบ local:**
 
 ```bash
 tensorboard --logdir logs
-# open http://localhost:6006
+# เปิด http://localhost:6006
 ```
 
-**On LANTA** (TensorBoard runs on the login node, viewed through an SSH tunnel):
+**บน LANTA** (TensorBoard รันบน login node และดูผลผ่าน SSH tunnel):
 
 ```bash
-# terminal 1 — on LANTA:
+# terminal ที่ 1 — บน LANTA:
 conda activate hpc-ai
 tensorboard --logdir logs --port 6006 --bind_all
 
-# terminal 2 — on your laptop:
+# terminal ที่ 2 — บนเครื่องของคุณ:
 ssh -L 6006:localhost:6006 <username>@lanta.nstda.or.th
-# then open http://localhost:6006 in your browser
+# จากนั้นเปิด http://localhost:6006 ในเบราว์เซอร์
 ```
 
-Pointing `--logdir` at `logs/` (not a single run) overlays **all**
-experiments in one dashboard — ideal for comparing tuning attempts.
+การชี้ `--logdir` ไปที่ `logs/` (ไม่ใช่โฟลเดอร์ของ run เดียว) จะรวมทุกการทดลอง
+ไว้ใน dashboard เดียวกัน — เหมาะสำหรับเปรียบเทียบผลการปรับแต่งไฮเปอร์พารามิเตอร์
+หลายๆ ครั้ง
 
 ---
 
-## Checkpoints & Outputs
+## Checkpoints และ Outputs
 
-Each experiment writes a self-contained results directory:
+การทดลองแต่ละครั้งจะสร้างโฟลเดอร์ผลลัพธ์ที่สมบูรณ์ในตัวเอง (self-contained):
 
 ```
 outputs/<experiment_name>/
-├── config.yaml      # exact config used  -> full reproducibility
-├── best.pt          # weights with the highest validation accuracy
-├── last.pt          # weights after the most recent epoch
-├── metrics.json     # per-epoch: loss, accuracy, epoch time, images/sec, lr
-└── eval_test.json   # written by evaluate.py
+├── config.yaml      # สำเนา config ที่ใช้จริง -> ทำให้ผลลัพธ์ทำซ้ำได้อย่างสมบูรณ์
+├── best.pt          # weights ที่ให้ validation accuracy สูงสุด
+├── last.pt          # weights หลัง epoch ล่าสุด
+├── metrics.json     # ข้อมูลรายเอพอค: loss, accuracy, เวลาต่อ epoch, images/sec, lr
+└── eval_test.json   # เขียนโดย evaluate.py
 ```
 
-Checkpoints store the model weights **plus** the optimizer/scheduler state,
-the config, and the class names — so `evaluate.py`, `predict.py`, and
-`export.py` need nothing but the `.pt` file. Copy checkpoints worth keeping
-into `checkpoints/` (files in `outputs/` may be overwritten by re-runs).
+checkpoint จะเก็บทั้ง model weights **และ** สถานะของ optimizer/scheduler,
+config, และชื่อคลาส (class names) ไว้ด้วย — ดังนั้น `evaluate.py`,
+`predict.py`, และ `export.py` จึงต้องการเพียงไฟล์ `.pt` เท่านั้น ให้คัดลอก
+checkpoint ที่ต้องการเก็บไว้ไปยัง `checkpoints/` (ไฟล์ใน `outputs/` อาจถูก
+เขียนทับได้เมื่อรันซ้ำ)
 
 ---
 
-## Expected Outputs
+## ผลลัพธ์ที่คาดหวัง (Expected Outputs)
 
-Numbers vary with hardware and node load — these are ballpark figures to
-sanity-check your runs.
+ตัวเลขจะแตกต่างกันไปตามฮาร์ดแวร์และภาระงานของ node — ตัวเลขเหล่านี้เป็นเพียง
+ค่าประมาณสำหรับตรวจสอบว่าผลการรันของคุณอยู่ในเกณฑ์ที่สมเหตุสมผล
 
 **Lab 1 — MNIST, LeNet-5, 5 epochs, batch 128:**
 
 | | CPU (16 cores) | 1x A100 GPU |
 |--|--|--|
-| Time per epoch | ~30–60 s | ~5–10 s |
+| เวลาต่อ epoch | ~30–60 วินาที | ~5–10 วินาที |
 | Throughput | ~1,000–2,000 img/s | ~6,000–12,000 img/s |
-| Final val accuracy | ~99% | ~99% (same math, same result) |
+| Val accuracy สุดท้าย | ~99% | ~99% (หลักการคำนวณเดียวกัน ผลลัพธ์เดียวกัน) |
 
 **Lab 2 — THFOOD-100 baseline (ResNet-18, 5 epochs, 1x A100):**
 
-| | Value |
+| | ค่า |
 |--|--|
-| Time per epoch | a few minutes (depends on dataset size and I/O) |
-| Val accuracy after 5 epochs | roughly 70–85% |
-| Well-tuned (competition) | higher — that's your job! |
+| เวลาต่อ epoch | ไม่กี่นาที (ขึ้นกับขนาดชุดข้อมูลและความเร็ว I/O) |
+| Val accuracy หลัง 5 epoch | ประมาณ 70–85% |
+| ปรับแต่งอย่างดี (competition) | สูงกว่านี้ — นั่นคือภารกิจของคุณ! |
 
 ---
 
-## Troubleshooting
+## การแก้ปัญหา (Troubleshooting)
 
-| Symptom | Fix |
+| อาการ | วิธีแก้ |
 |---------|-----|
-| Job hangs / download error on a compute node | Download MNIST and ImageNet weights on a **login node** first (see Installation) |
-| `URLError: Network is unreachable` downloading ResNet/MobileNet/EfficientNet weights | In the shared class setup, `TORCH_HOME` must point at the shared cache under `/project` (see Installation) — re-run `setup_user.sh` to regenerate `project.env` if it's missing `TORCH_HOME` |
-| `config requests CUDA but no GPU is available` | You are on a CPU node — the run continues on CPU; use the `gpu` partition for GPU runs |
-| `THFOOD-100 split not found` | Check the ImageFolder layout with `python datasets/download.py --dataset thfood100` |
-| Out-of-memory on GPU | Reduce `training.batch_size` (halve it until it fits) |
-| DataLoader is the bottleneck (low GPU utilization) | Raise `dataset.num_workers` to match `--cpus-per-task` |
-| Two runs overwrite each other | Give every run a unique `experiment.name` (or `--name`) |
+| Job ค้าง / เกิด error ตอนดาวน์โหลดบน compute node | ให้ดาวน์โหลด MNIST และ ImageNet weights บน **login node** ก่อน (ดูหัวข้อการติดตั้ง) |
+| `URLError: Network is unreachable` ตอนดาวน์โหลด weights ของ ResNet/MobileNet/EfficientNet | ในการตั้งค่าแบบคลาสเรียนร่วมกัน `TORCH_HOME` ต้องชี้ไปยัง cache ที่ใช้ร่วมกันภายใต้ `/project` (ดูหัวข้อการติดตั้ง) — ลองรัน `setup_user.sh` ใหม่เพื่อสร้าง `project.env` ใหม่ หากไฟล์นั้นขาด `TORCH_HOME` ไป |
+| `config requests CUDA but no GPU is available` | คุณกำลังอยู่บน CPU node — การรันจะดำเนินต่อไปบน CPU แทน ให้ใช้ partition `gpu` สำหรับการรันแบบ GPU |
+| `THFOOD-100 split not found` | ตรวจสอบโครงสร้างแบบ ImageFolder ด้วยคำสั่ง `python datasets/download.py --dataset thfood100` |
+| GPU หน่วยความจำไม่พอ (Out-of-memory) | ลด `training.batch_size` ลง (ลดครึ่งหนึ่งไปเรื่อยๆ จนกว่าจะพอดี) |
+| DataLoader เป็นคอขวด (การใช้งาน GPU ต่ำ) | เพิ่ม `dataset.num_workers` ให้สอดคล้องกับ `--cpus-per-task` |
+| การรันสองครั้งเขียนทับกัน | ตั้ง `experiment.name` (หรือ `--name`) ให้ไม่ซ้ำกันในแต่ละการรัน |

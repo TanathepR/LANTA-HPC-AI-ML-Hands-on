@@ -183,7 +183,10 @@ home directories carry a small quota (e.g. 100 GB / 600k inodes) while
 - **In `$HOME`, per student** via `setup_user.sh`: only the small, personal
   parts — copies of `configs/` and `jobs/` (meant to be edited) and empty
   `checkpoints/`, `outputs/`, `logs/` directories (where a student's own
-  runs land). A generated `project.env` records `HPCAI_PROJECT_DIR` so the
+  runs land), plus a `scripts/` symlink back to the shared `/project`
+  checkout (so `python scripts/train.py ...` works with a relative path
+  from the student's workspace, without duplicating the code). A generated
+  `project.env` records `HPCAI_PROJECT_DIR` so the
   copied `jobs/*.sh` scripts know where the shared code lives, while still
   running relative to the student's own workspace — so `configs/`,
   `outputs/`, `logs/`, `checkpoints/` all resolve to `$HOME`, never to

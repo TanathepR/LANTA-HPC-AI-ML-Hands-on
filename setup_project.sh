@@ -7,8 +7,8 @@
 # while /project has a much larger one (e.g. 30 TB / 300M inodes). This repo
 # should be cloned directly onto /project, not into any student's $HOME:
 #
-#   git clone <repo-url> /project/tn999996-north/hpc-ai-workshop
-#   cd /project/tn999996-north/hpc-ai-workshop
+#   git clone <repo-url> /project/tn999996-north/training_ai_ml
+#   cd /project/tn999996-north/training_ai_ml
 #   module load Mamba/23.11.0-0
 #   bash setup_project.sh
 #
