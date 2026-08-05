@@ -26,7 +26,7 @@ from torch.utils.tensorboard import SummaryWriter
 from trainer.engine import train_one_epoch, validate
 from trainer.utils import (
     DistributedContext,
-    broadcast_object,
+    broadcast_scalars,
     reduce_max,
     reduce_mean,
     reduce_sum,
@@ -187,7 +187,7 @@ class Trainer:
                 val_stats = validate(self.model, self.val_loader, self.criterion, self.device)
             else:
                 val_stats = {"loss": 0.0, "accuracy": 0.0}
-            val_stats = broadcast_object(val_stats, src=0)
+            val_stats = broadcast_scalars(val_stats, self.device, src=0)
 
             self._step_scheduler(val_stats["loss"])
             current_lr = self.optimizer.param_groups[0]["lr"]

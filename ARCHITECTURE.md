@@ -125,7 +125,7 @@ optionally freeze the backbone (**before** swapping the head, so the new
 | `engine.py` | The hot loops as **plain functions**: `train_one_epoch` (the 5-step batch cycle: move → forward → backward → update → record; AMP branch via `GradScaler`; GPU-synchronized timing), `validate` (`@torch.no_grad` + `model.eval()`), `predict_all` (label collection for sklearn reports) |
 | `losses.py` | `build_loss` — CrossEntropyLoss with configurable label smoothing |
 | `metrics.py` | `AverageMeter` (sample-weighted running mean), `accuracy` (top-1), `topk_accuracy` |
-| `utils.py` | Config I/O (`load_config`/`save_config`), `set_seed` (+ cuDNN determinism toggle), `get_device` (CUDA→CPU fallback with warning), `count_parameters`, `model_size_mb`, `build_optimizer` (SGD/Adam/AdamW; skips frozen params), `build_scheduler` (StepLR/MultiStepLR/CosineAnnealingLR/ReduceLROnPlateau/none), `load_checkpoint`, and the DDP helpers described in §9 (`init_distributed`, `cleanup_distributed`, `unwrap_model`, `reduce_mean`/`reduce_sum`/`reduce_max`, `broadcast_object`) |
+| `utils.py` | Config I/O (`load_config`/`save_config`), `set_seed` (+ cuDNN determinism toggle), `get_device` (CUDA→CPU fallback with warning), `count_parameters`, `model_size_mb`, `build_optimizer` (SGD/Adam/AdamW; skips frozen params), `build_scheduler` (StepLR/MultiStepLR/CosineAnnealingLR/ReduceLROnPlateau/none), `load_checkpoint`, and the DDP helpers described in §9 (`init_distributed`, `cleanup_distributed`, `unwrap_model`, `reduce_mean`/`reduce_sum`/`reduce_max`, `broadcast_scalars`) |
 
 Class/function split rationale: the *loop bodies* (what students must read)
 are flat functions in `engine.py`; the *bookkeeping* (what students can treat
@@ -351,12 +351,17 @@ complexity without a real speedup to demonstrate.
   prints progress, and saves checkpoints. Every other process trains
   silently.
 - **Validation runs once**, on the main process, over the full (un-sharded)
-  val set, then broadcasts the result (`trainer.utils.broadcast_object`) to
-  every other process. This keeps LR-scheduler stepping and the
-  early-stopping decision **identical on every process** — if they
-  diverged, some process could `break` out of the epoch loop while others
-  kept training, and the next DDP `.backward()` call would deadlock waiting
-  for a gradient all-reduce that never comes from the process that already
+  val set, then broadcasts the result (`trainer.utils.broadcast_scalars`) to
+  every other process as a plain tensor — not `dist.broadcast_object_list`,
+  which pickles arbitrary Python objects and hit a PyTorch/NCCL bug
+  (`SymIntArrayRef expected to contain only concrete integers`) on some
+  builds; since the broadcast values here are always plain floats, a tensor
+  broadcast avoids that bug and is the more idiomatic tool anyway. This
+  keeps LR-scheduler stepping and the early-stopping decision **identical
+  on every process** — if they diverged, some process could `break` out of
+  the epoch loop while others kept training, and the next DDP
+  `.backward()` call would deadlock waiting for a gradient all-reduce that
+  never comes from the process that already
   exited.
 - **Per-epoch training stats are reduced across processes**
   (`Trainer._reduce_train_stats`) before logging: loss/accuracy are

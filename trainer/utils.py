@@ -208,19 +208,30 @@ def reduce_max(value: float, device: torch.device) -> float:
     return tensor.item()
 
 
-def broadcast_object(obj: Any, src: int = 0) -> Any:
-    """Broadcast a picklable Python object from rank ``src`` to every process.
+def broadcast_scalars(
+    values: dict[str, float], device: torch.device, src: int = 0
+) -> dict[str, float]:
+    """Broadcast a dict of float scalars from rank ``src`` to every process.
 
     Used to keep validation metrics identical on every rank (validation runs
     only on the main process — see ``Trainer.fit``) so scheduler stepping and
     early-stopping decisions never diverge between ranks, which would
     deadlock the next collective call inside DDP's backward pass.
+
+    Deliberately a plain tensor broadcast rather than
+    ``dist.broadcast_object_list`` (which pickles arbitrary Python objects):
+    that path hits a PyTorch/NCCL bug on some builds
+    (``RuntimeError: SymIntArrayRef expected to contain only concrete
+    integers`` inside ``torch.distributed.distributed_c10d``). Since the
+    values here are always plain floats, a tensor broadcast sidesteps the
+    bug entirely and is the more idiomatic tool for the job anyway.
     """
     if not dist.is_initialized():
-        return obj
-    box = [obj]
-    dist.broadcast_object_list(box, src=src)
-    return box[0]
+        return values
+    keys = sorted(values.keys())
+    tensor = torch.tensor([values[k] for k in keys], device=device, dtype=torch.float64)
+    dist.broadcast(tensor, src=src)
+    return dict(zip(keys, tensor.tolist()))
 
 
 # ---------------------------------------------------------------------------
