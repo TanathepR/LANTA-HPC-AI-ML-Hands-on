@@ -1,0 +1,24 @@
+# Conda environment for the HPC AI/ML workshop.
+#
+# Create it with:
+#   conda env create -f environment.yml
+#
+# On LANTA, load the conda distribution first:
+#   module load Mamba/23.11.0-0
+name: hpc-ai
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  # PyTorch is installed through pip so we get the official CUDA-enabled
+  # wheels that match the A100 GPUs on LANTA.
+  - pip:
+      - torch>=2.3
+      - torchvision>=0.18
+      - PyYAML>=6.0
+      - tensorboard>=2.16
+      - tqdm>=4.66
+      - scikit-learn>=1.4
+      - numpy>=1.26
+      - Pillow>=10.0

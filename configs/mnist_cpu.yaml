@@ -1,0 +1,52 @@
+# =============================================================================
+# LAB 1a — MNIST on CPU
+# =============================================================================
+# Identical to mnist_gpu.yaml except for `device` and the experiment name.
+# Compare the two runs: training time, images/sec, accuracy.
+#
+#     python scripts/train.py --config configs/mnist_cpu.yaml
+# =============================================================================
+
+experiment:
+  name: mnist_cpu
+  seed: 42
+  deterministic: false
+  output_dir: ./outputs
+  log_dir: ./logs
+
+dataset:
+  name: mnist
+  root: ./data
+  img_size: 28
+  augmentation: none
+  num_workers: 4
+  pin_memory: false        # Only useful when copying to a GPU
+
+model:
+  name: lenet
+  pretrained: false
+  freeze_backbone: false
+  in_channels: 1
+
+training:
+  batch_size: 128
+  epochs: 5
+  lr: 0.001
+  amp: false
+  early_stopping:
+    enabled: false
+    patience: 5
+    min_delta: 0.0
+
+loss:
+  name: cross_entropy
+  label_smoothing: 0.0
+
+optimizer:
+  name: AdamW
+  weight_decay: 0.0001
+
+scheduler:
+  name: none
+
+device: cpu                # <-- the ONLY meaningful difference from mnist_gpu.yaml

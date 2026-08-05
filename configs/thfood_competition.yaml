@@ -1,0 +1,61 @@
+# =============================================================================
+# LAB 2 — THFOOD-100 competition template
+# =============================================================================
+# Your mission: reach the highest validation accuracy by tuning ONLY:
+#
+#   * training.batch_size
+#   * training.lr
+#   * training.epochs
+#   * optimizer  (name, weight_decay, momentum)
+#   * scheduler  (name and its parameters)
+#   * model.name (resnet18 | mobilenetv3 | efficientnet_b0)
+#
+# Change the experiment name for every attempt so runs don't overwrite
+# each other, then compare them all side by side in TensorBoard:
+#
+#     python scripts/train.py --config configs/thfood_competition.yaml
+# =============================================================================
+
+experiment:
+  name: thfood_competition_v1   # <-- rename this for each attempt!
+  seed: 42
+  deterministic: false
+  output_dir: ./outputs
+  log_dir: ./logs
+
+dataset:
+  name: thfood100
+  root: ./data/thfood100
+  img_size: 224
+  augmentation: strong          # Adds color jitter, rotation, random erasing
+  num_workers: 8
+  pin_memory: true
+
+model:
+  name: efficientnet_b0         # <-- tune me
+  pretrained: true
+  freeze_backbone: false
+
+training:
+  batch_size: 64                # <-- tune me
+  epochs: 20                    # <-- tune me
+  lr: 0.0003                    # <-- tune me
+  amp: true
+  early_stopping:
+    enabled: true               # Stops wasted epochs automatically
+    patience: 5
+    min_delta: 0.0
+
+loss:
+  name: cross_entropy
+  label_smoothing: 0.1          # Regularization: helps on 100 fine-grained classes
+
+optimizer:
+  name: AdamW                   # <-- tune me (SGD | Adam | AdamW)
+  weight_decay: 0.01
+
+scheduler:
+  name: CosineAnnealingLR       # <-- tune me
+  min_lr: 0.00001
+
+device: cuda

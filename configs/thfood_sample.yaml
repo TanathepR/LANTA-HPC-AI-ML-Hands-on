@@ -1,0 +1,60 @@
+# =============================================================================
+# LAB 2 — THFOOD-100 SAMPLE (smoke test on the bundled preview data)
+# =============================================================================
+# Uses the small THFOOD-100.sample preview under data/, which ships only
+# ~5 images per class in a flat (unsplit) layout:
+#
+#     data/THFOOD-100.sample/<class_id>/*.jpg
+#     data/THFOOD-100.sample/class_labels.csv
+#
+# datasets/thfood100.py detects the missing train/val/test folders and
+# derives a per-class train/val/test split automatically. This is only
+# enough data to confirm the pipeline runs end-to-end — not to reach any
+# meaningful accuracy. Get the full dataset from your instructor and use
+# thfood_baseline.yaml / thfood_competition.yaml for the real lab.
+#
+#     python scripts/train.py --config configs/thfood_sample.yaml
+# =============================================================================
+
+experiment:
+  name: thfood_sample
+  seed: 42
+  deterministic: false
+  output_dir: ./outputs
+  log_dir: ./logs
+
+dataset:
+  name: thfood100
+  root: ./data/THFOOD-100.sample
+  img_size: 224
+  augmentation: basic
+  num_workers: 2
+  pin_memory: true
+
+model:
+  name: resnet18
+  pretrained: true
+  freeze_backbone: false
+
+training:
+  batch_size: 16
+  epochs: 3
+  lr: 0.0003
+  amp: true
+  early_stopping:
+    enabled: false
+    patience: 5
+    min_delta: 0.0
+
+loss:
+  name: cross_entropy
+  label_smoothing: 0.0
+
+optimizer:
+  name: AdamW
+  weight_decay: 0.01
+
+scheduler:
+  name: none
+
+device: cuda
