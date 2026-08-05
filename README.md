@@ -7,8 +7,8 @@ Slurm (Slurm job submission) การทดลองที่ทำซ้ำไ
 
 | Lab | หัวข้อ | สิ่งที่จะได้เรียนรู้ |
 |-----|------|----------------|
-| **Lab 1** | การจำแนกตัวเลขลายมือ MNIST (MNIST digit classification) | เปรียบเทียบ CPU กับ GPU: เวลาในการฝึกโมเดล (training time), throughput, การใช้งาน GPU (GPU utilization) — ใช้โค้ดชุดเดียวกัน เปลี่ยนแค่ config |
-| **Lab 2** | การจำแนกอาหารไทย THFOOD-100 (THFOOD-100 Thai food classification) | Transfer learning ร่วมกับการปรับแต่งไฮเปอร์พารามิเตอร์ — ไม่ต้องแก้ source code แก้เพียงไฟล์ YAML |
+| **Demo** | การจำแนกตัวเลขลายมือ MNIST (MNIST digit classification) | เปรียบเทียบ CPU กับ GPU: เวลาในการฝึกโมเดล (training time), throughput, การใช้งาน GPU (GPU utilization) — ใช้โค้ดชุดเดียวกัน เปลี่ยนแค่ config |
+| **Hands-on** | การจำแนกอาหารไทย THFOOD-100 (THFOOD-100 Thai food classification) | Transfer learning ร่วมกับการปรับแต่งไฮเปอร์พารามิเตอร์ — ไม่ต้องแก้ source code แก้เพียงไฟล์ YAML |
 
 ทุกการทดลองถูกควบคุมด้วย **ไฟล์การตั้งค่า YAML (YAML configuration files)** ทั้งหมด
 นักเรียนไม่จำเป็นต้องแก้ไข source code ภาษา Python เพื่อทำแลปให้สำเร็จ
@@ -49,7 +49,7 @@ training_ai_ml/
 
 ## การติดตั้ง (Installation)
 
-### บน LANTA แบบใช้งานคนเดียว (solo, หนึ่ง project quota)
+### บน LANTA แบบใช้งานคนเดียว (คนเดียว, หนึ่ง project quota)
 
 ทำตามขั้นตอนต่อไปนี้ตามลำดับ:
 
@@ -165,7 +165,7 @@ directory (`setup_project.sh` จะแสดงคำสั่งชุดเ�
 
 ---
 
-## Lab 1 — CPU vs. GPU (MNIST)
+## Demo — CPU vs. GPU (MNIST)
 
 config ทั้งสองไฟล์ [mnist_cpu.yaml](configs/mnist_cpu.yaml) และ
 [mnist_gpu.yaml](configs/mnist_gpu.yaml) **เหมือนกันทุกอย่าง ต่างกันเพียง
@@ -219,7 +219,7 @@ Epoch   1/5 | train loss 0.2431 acc 92.51% | val loss 0.0705 acc 97.72% |   11.2
 
 ---
 
-## Lab 2 — การจำแนกอาหารไทย (THFOOD-100)
+## Hands-on — การจำแนกอาหารไทย (THFOOD-100)
 
 ### 1. เตรียมชุดข้อมูล
 
