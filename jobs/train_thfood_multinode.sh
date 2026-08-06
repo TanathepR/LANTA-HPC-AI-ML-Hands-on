@@ -28,8 +28,8 @@
 #SBATCH --nodes=2                    # <-- adjust to how many nodes you want
 #SBATCH --ntasks-per-node=4          # one task per GPU (must match --gpus-per-node)
 #SBATCH --gpus-per-node=4            # <-- adjust to how many GPUs per node
-#SBATCH --cpus-per-task=16           # (cores per node) / (GPUs per node)
-#SBATCH --time=04:00:00
+#SBATCH --cpus-per-task=4           # (cores per node) / (GPUs per node)
+#SBATCH --time=00:30:00
 #SBATCH --account=tn999996           # <-- replace with your LANTA project account
 #SBATCH --output=logs/slurm-%x-%j.out
 
