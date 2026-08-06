@@ -406,6 +406,20 @@ Lab 1 / MNIST ไม่มีความสามารถนี้ (ดูเ�
   epoch loop ในขณะที่ process อื่นยังฝึกต่อ แล้วการเรียก `.backward()` ของ
   DDP ครั้งถัดไปจะ deadlock เพราะรอ gradient all-reduce จาก process ที่
   ออกจากลูปไปแล้ว
+- **`validate()` ต้องเรียกโมเดลที่ยัง "ไม่ได้" ห่อด้วย DDP** — `Trainer.fit`
+  ส่ง `trainer.utils.unwrap_model(self.model)` เข้า `validate()` ไม่ใช่
+  `self.model` ตรงๆ เหตุผล: `DistributedDataParallel.forward()` จะ
+  broadcast buffer (เช่น BatchNorm running stats) เป็น collective
+  operation ทุกครั้งที่เรียก (ค่า default `broadcast_buffers=True`) ถ้าส่ง
+  โมเดลที่ห่อด้วย DDP เข้า `validate()` ซึ่งรันบน main process เท่านั้น
+  process นั้นจะ enqueue collective ประมาณหนึ่งครั้งต่อ validation batch
+  (~167 ครั้ง) ที่ process อื่นไม่เคยเรียกคู่ด้วยเลย ทำให้ sequence number
+  ของ collective operation ทุกตัวหลังจากนั้นเพี้ยนไปถาวรระหว่าง process —
+  ไม่ crash ทันที (เพราะ NCCL เป็น async) แต่จะไป deadlock ที่ collective
+  ตัวถัดไปจริงๆ (buffer broadcast แรกของ epoch ถัดไป) จนโดน NCCL watchdog
+  timeout (ค่า default 600 วินาที) เกิดซ้ำที่จุดเดิมทุกครั้งไม่ว่า
+  validation จะเร็วหรือช้าแค่ไหน เพราะเป็นปัญหาเรื่อง sequence ของ
+  collective operation ไม่ใช่เรื่องความเร็ว
 - **สถิติของแต่ละ epoch ระหว่างการฝึกถูกรวมข้าม process**
   (`Trainer._reduce_train_stats`) ก่อนจะ log: loss/accuracy ใช้ค่าเฉลี่ย
   ส่วน `images_per_sec` ใช้ค่าผลรวม (นี่คือตัวเลข scaling จริงที่ multi-GPU

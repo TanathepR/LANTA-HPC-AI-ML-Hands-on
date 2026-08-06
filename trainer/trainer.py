@@ -183,8 +183,23 @@ class Trainer:
             # early-stopping decision below identical on every process;
             # letting them diverge would deadlock the next DDP backward()
             # call, since some ranks would stop while others kept training.
+            #
+            # Deliberately validates the UNWRAPPED model (unwrap_model),
+            # never the DDP-wrapped self.model: DistributedDataParallel's
+            # forward() issues a collective (broadcasting buffers) on every
+            # call by default, and calling it only on rank 0 here would
+            # enqueue ~one collective per validation batch that ranks 1..N
+            # never match — permanently desynchronizing every collective
+            # op's sequence number from that point on. This doesn't fail
+            # immediately (NCCL ops are async), it silently corrupts the
+            # op ordering until the next real collective (epoch 2's first
+            # DDP forward) hangs and eventually hits NCCL's watchdog
+            # timeout — reproducible at the exact same point every time,
+            # regardless of how fast validation itself runs.
             if self.is_main_process:
-                val_stats = validate(self.model, self.val_loader, self.criterion, self.device)
+                val_stats = validate(
+                    unwrap_model(self.model), self.val_loader, self.criterion, self.device
+                )
             else:
                 val_stats = {"loss": 0.0, "accuracy": 0.0}
             val_stats = broadcast_scalars(val_stats, self.device, src=0)
