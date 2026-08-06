@@ -13,8 +13,8 @@
 #SBATCH --partition=compute          # LANTA CPU partition
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
-#SBATCH --time=01:00:00
+#SBATCH --cpus-per-task=4
+#SBATCH --time=00:30:00
 #SBATCH --account=tn999996           # <-- replace with your LANTA project account
 #SBATCH --output=logs/slurm-%x-%j.out
 
