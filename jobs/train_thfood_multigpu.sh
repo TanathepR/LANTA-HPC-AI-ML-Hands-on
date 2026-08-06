@@ -52,18 +52,29 @@ conda activate hpc-ai
 
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 
+# -----------------------------------------------------------------------
 # Rendezvous point for torch.distributed's process group (env:// init) —
-# only one node here, but every srun-launched process still reads these two
+# only one node here, but every srun-launched process still reads these
 # variables directly; trainer.utils.init_distributed does the rest
-# (SLURM_PROCID -> rank, SLURM_LOCALID -> local rank, SLURM_NTASKS -> world
-# size).
-export MASTER_ADDR=$(scontrol show hostnames "${SLURM_JOB_NODELIST}" | head -n 1)
-export MASTER_PORT=29500
+# (SLURM_PROCID -> rank, SLURM_LOCALID -> local rank).
+# -----------------------------------------------------------------------
+MASTER_ADDR=$(scontrol show hostnames "${SLURM_JOB_NODELIST}" | head -n 1)
+export MASTER_ADDR
+echo "MASTER_ADDR=${MASTER_ADDR}"
+
+# Derived from the job ID (not a fixed port) so two concurrent jobs on the
+# shared cluster never collide trying to bind/connect to the same port.
+MASTER_PORT=$((10000 + SLURM_JOB_ID % 50000))
+export MASTER_PORT
+echo "MASTER_PORT=${MASTER_PORT}"
+
+WORLD_SIZE=$((SLURM_NNODES * SLURM_NTASKS_PER_NODE))
+export WORLD_SIZE
+echo "WORLD_SIZE=${WORLD_SIZE}"
 
 echo "Job ${SLURM_JOB_ID} on $(hostname): ${SLURM_GPUS_PER_NODE} GPU(s)"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # NOTE: pretrained ImageNet weights must already be cached on the shared
 # project (download them once on a login node — see setup_project.sh).
-srun --cpus-per-task="${SLURM_CPUS_PER_TASK}" \
-    python "${HPCAI_PROJECT_DIR}/scripts/train.py" --config configs/thfood_baseline.yaml "$@"
+srun python "${HPCAI_PROJECT_DIR}/scripts/train.py" --config configs/thfood_baseline.yaml "$@"

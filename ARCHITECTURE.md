@@ -350,8 +350,12 @@ Lab 1 / MNIST ไม่มีความสามารถนี้ (ดูเ�
 - **`srun python` โดยตรง** — ใช้โดยทั้ง `jobs/train_thfood_multigpu.sh`
   (node เดียว) และ `jobs/train_thfood_multinode.sh` (ข้ามหลาย node) บน
   Slurm — Slurm สั่ง process หนึ่งตัวต่อหนึ่ง GPU โดยตรง แล้ว rank มาจาก
-  `SLURM_PROCID`/`SLURM_LOCALID`/`SLURM_NTASKS` แทน; job script เป็นคน
-  export `MASTER_ADDR`/`MASTER_PORT` เอง วิธีนี้ตรงกับ pattern ที่ ThaiSC/
+  `SLURM_PROCID` ส่วน local rank คำนวณจาก `rank % SLURM_GPUS_ON_NODE`
+  (สูตรที่ทดสอบแล้วว่าใช้งานได้จริงบน LANTA แทนการเชื่อ `SLURM_LOCALID`
+  ตรงๆ) และ `WORLD_SIZE` มาจากที่ job script export ไว้; job script เป็นคน
+  export `MASTER_ADDR`/`MASTER_PORT`/`WORLD_SIZE` เอง — `MASTER_PORT`
+  คำนวณจาก `SLURM_JOB_ID` (ไม่ใช่ค่าคงที่) เพื่อไม่ให้ job ที่รันพร้อมกันบน
+  คลัสเตอร์ที่ใช้ร่วมกันชน port เดียวกัน วิธีนี้ตรงกับ pattern ที่ ThaiSC/
   LANTA ใช้เป็นทางการสำหรับ PyTorch multi-GPU/multi-node — เลี่ยงปัญหาที่
   rendezvous ของ `torchrun` เอง (เป็น TCP connection คนละอันกับ process
   group จริง) connect ข้าม node บนเครือข่ายของ LANTA ไม่ได้ ทั้งที่ตัว
@@ -362,8 +366,10 @@ Lab 1 / MNIST ไม่มีความสามารถนี้ (ดูเ�
 - `scripts/train.py` เรียก `trainer.utils.init_distributed(device)` ทันที
   หลังจาก seed ค่าต่างๆ แล้ว ฟังก์ชันนี้ตรวจว่ามี `RANK` (จาก `torchrun`)
   อยู่ใน environment variable หรือไม่ ถ้าไม่มีจะ fallback ไปอ่าน
-  `SLURM_PROCID`/`SLURM_LOCALID`/`SLURM_NTASKS` แทน (กรณี `srun python`
-  โดยตรง) รันแบบ `python scripts/train.py` ธรรมดาจะไม่มีตัวแปรเหล่านี้เลย
+  `SLURM_PROCID` (rank) และคำนวณ local rank จาก `rank %
+  SLURM_GPUS_ON_NODE` (มี `SLURM_LOCALID` เป็น fallback อีกชั้นถ้าคลัสเตอร์
+  ไม่มี `SLURM_GPUS_ON_NODE`) แทน (กรณี `srun python` โดยตรง) รันแบบ
+  `python scripts/train.py` ธรรมดาจะไม่มีตัวแปรเหล่านี้เลย
   ฟังก์ชันจึงคืนค่าเป็น context แบบ single-process แทน แล้วคืนค่าเป็น
   `DistributedContext` (rank, world_size, local_rank, device ที่ resolve
   แล้ว, `is_main_process`) โค้ดส่วนถัดไปทั้งหมดจะแยกเงื่อนไขตามออบเจกต์นี้

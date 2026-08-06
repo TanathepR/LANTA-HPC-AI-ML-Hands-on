@@ -122,11 +122,12 @@ def init_distributed(requested_device: str) -> DistributedContext:
     - Plain ``srun python scripts/train.py ...`` under Slurm, one task per
       GPU (LANTA's own documented pattern for multi-GPU/multi-node PyTorch
       jobs — see ``jobs/train_thfood_multinode.sh``): Slurm sets
-      ``SLURM_PROCID``/``SLURM_LOCALID``/``SLURM_NTASKS`` instead, and the
-      job script exports ``MASTER_ADDR``/``MASTER_PORT`` itself. This avoids
-      torchrun's own separate rendezvous handshake, which failed to connect
-      across nodes on LANTA's network even though plain ``env://``
-      process-group init (used here either way) worked fine.
+      ``SLURM_PROCID``/``SLURM_NTASKS``/``SLURM_GPUS_ON_NODE`` instead, and
+      the job script exports ``MASTER_ADDR``/``MASTER_PORT``/``WORLD_SIZE``
+      itself. This avoids torchrun's own separate rendezvous handshake,
+      which failed to connect across nodes on LANTA's network even though
+      plain ``env://`` process-group init (used here either way) worked
+      fine.
 
     A plain ``python scripts/train.py ...`` invocation has none of these, so
     ``WORLD_SIZE`` defaults to 1 and this is a no-op that returns a
@@ -156,9 +157,17 @@ def init_distributed(requested_device: str) -> DistributedContext:
         local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     else:
         # Slurm-native launch: srun already assigned one task per GPU, so
-        # rank/local rank come from Slurm rather than a torchrun rendezvous.
+        # rank comes from Slurm rather than a torchrun rendezvous. Local
+        # rank is derived as rank % gpus_per_node (SLURM_GPUS_ON_NODE) —
+        # the field-tested formula from LANTA's own working DDP examples —
+        # rather than trusting SLURM_LOCALID, with SLURM_LOCALID kept as a
+        # fallback for portability to clusters without SLURM_GPUS_ON_NODE.
         rank = int(os.environ["SLURM_PROCID"])
-        local_rank = int(os.environ.get("SLURM_LOCALID", "0"))
+        if "SLURM_GPUS_ON_NODE" in os.environ:
+            gpus_per_node = int(os.environ["SLURM_GPUS_ON_NODE"])
+            local_rank = rank % gpus_per_node
+        else:
+            local_rank = int(os.environ.get("SLURM_LOCALID", "0"))
 
     use_cuda = requested_device.startswith("cuda") and torch.cuda.is_available()
     # NCCL is the fast GPU-to-GPU backend; gloo is the CPU fallback so a
@@ -170,8 +179,9 @@ def init_distributed(requested_device: str) -> DistributedContext:
         # to one GPU per task (device_count() == 1, so index 0 IS the
         # assigned GPU) or leaves every GPU visible to every task
         # (device_count() == N, so index local_rank picks the assigned one)
-        # depends on the cluster's Slurm GRES config. Handle both instead of
-        # assuming one.
+        # depends on the cluster's Slurm GRES config — on LANTA it's the
+        # latter (confirmed: gpus_per_node == torch.cuda.device_count() in
+        # working DDP examples). Handle both instead of assuming one.
         gpu_index = 0 if torch.cuda.device_count() == 1 else local_rank
         torch.cuda.set_device(gpu_index)
         device = torch.device("cuda", gpu_index)
