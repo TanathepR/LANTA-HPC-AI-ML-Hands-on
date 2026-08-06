@@ -214,6 +214,12 @@ def build_thfood_dataloaders(
         train_sampler = DistributedSampler(
             train_set, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True
         )
+    # Keeps worker processes alive across epochs instead of respawning them
+    # every epoch (fork + reimport torchvision/PIL each time) — pure
+    # overhead reduction, no effect on what gets loaded. No-op when
+    # num_workers is 0 (there are no worker processes to keep alive).
+    persistent_workers = num_workers > 0
+
     train_loader = DataLoader(
         train_set,
         batch_size=batch_size,
@@ -221,6 +227,7 @@ def build_thfood_dataloaders(
         sampler=train_sampler,
         num_workers=num_workers,
         pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
     )
     val_loader = DataLoader(
         val_set,
@@ -228,6 +235,7 @@ def build_thfood_dataloaders(
         shuffle=False,
         num_workers=num_workers,
         pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
     )
     test_loader = DataLoader(
         test_set,
@@ -235,6 +243,7 @@ def build_thfood_dataloaders(
         shuffle=False,
         num_workers=num_workers,
         pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
     )
 
     return train_loader, val_loader, test_loader, class_names

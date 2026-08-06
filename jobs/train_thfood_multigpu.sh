@@ -30,7 +30,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4          # one task per GPU (must match --gpus-per-node)
 #SBATCH --gpus-per-node=4            # <-- adjust to how many GPUs you want
-#SBATCH --cpus-per-task=4            # (cores per node) / (GPUs per node)
+#SBATCH --cpus-per-task=8            # (cores per node) / (GPUs per node) -- 4 was too thin for THFOOD-100's JPEG decode + augmentation, causing rank 0 to lag behind the other ranks and hit a DDP buffer-broadcast NCCL timeout
 #SBATCH --time=00:30:00
 #SBATCH --account=tn999996           # <-- replace with your LANTA project account
 #SBATCH --output=logs/slurm-%x-%j.out

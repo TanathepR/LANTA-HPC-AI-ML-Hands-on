@@ -28,7 +28,7 @@ dataset:
   root: ./data/thfood100
   img_size: 224            # Standard ImageNet input resolution
   augmentation: basic      # RandomResizedCrop + horizontal flip
-  num_workers: 3           # matches jobs/train_thfood*.sh --cpus-per-task=4 (1 core left for the main process)
+  num_workers: 6           # matches jobs/train_thfood*.sh --cpus-per-task=8 (2 cores left for the main process)
   pin_memory: true
 
 model:
